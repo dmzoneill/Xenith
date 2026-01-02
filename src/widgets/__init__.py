@@ -1,4 +1,1 @@
 """Widget components"""
-
-
-

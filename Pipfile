@@ -4,30 +4,44 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+# Core Framework
 PyGObject = ">=3.42.0"
-# cairo and pyatspi are system packages - install via: sudo dnf install python3-cairo python3-atspi
-# cairo = ">=1.21.0"  # Install via: sudo dnf install python3-cairo
-# pyatspi = ">=2.46.0"  # Install via: sudo dnf install python3-atspi
+
+# Speech-to-Text
 openai-whisper = ">=20231117"
 torch = ">=2.0.0"
 torchaudio = ">=2.0.0"
-# pyaudio = ">=0.2.14"  # Optional - requires portaudio-devel system package. We use sounddevice instead.
+
+# OpenVINO (Intel NPU/GPU/CPU)
+openvino = "*"
+openvino-genai = "*"
+
+# Audio Input/Output
 sounddevice = ">=0.4.6"
 numpy = ">=1.24.0,<2.0.0"
+
+# Text-to-Speech
+piper-tts = "*"
+pyttsx3 = ">=2.90"
+
+# LLM APIs (optional cloud fallback)
 openai = ">=1.3.0"
 anthropic = ">=0.7.0"
-google-generativeai = ">=0.3.0"
-pyttsx3 = ">=2.90"
-gTTS = ">=2.4.0"
+
+# Configuration
 PyYAML = ">=6.0"
 jsonschema = ">=4.19.0"
-# python-dbus not available for Python 3.13 yet - install via system package if needed
-# python-dbus = ">=1.3.2"  # Install via: sudo dnf install python3-dbus
-PyOpenGL = ">=3.1.0"  # For GPU-accelerated plasma rendering
+
+# Model downloads
+huggingface_hub = "*"
+
+# Utilities
 importlib-metadata = ">=6.8.0"
 
 [dev-packages]
+black = "*"
+flake8 = "*"
+pytest = "*"
 
 [requires]
 python_version = "3.13"
-

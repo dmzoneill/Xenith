@@ -2,40 +2,39 @@
 PyGObject>=3.42.0
 cairo>=1.21.0
 
-# Audio Processing
-openai-whisper>=20231117  # Local voice-to-text (default)
-torch>=2.0.0  # Required by Whisper
-torchaudio>=2.0.0  # Required by Whisper
-# pyaudio>=0.2.14  # Optional - requires portaudio-devel. We use sounddevice instead.
-sounddevice>=0.4.6  # Required for voice input and wake word detection
+# Audio Processing - Speech-to-Text (STT)
+# OpenAI Whisper with PyTorch (CUDA/CPU) - High accuracy
+openai-whisper>=20231117
+torch>=2.0.0
+torchaudio>=2.0.0
+
+# OpenVINO (Intel NPU/GPU/CPU) - Low power, recommended
+openvino>=2024.0.0
+openvino-genai>=2024.0.0
+# optimum[openvino]>=1.16.0  # Optional: for model conversion
+
+# Audio Input/Output
+sounddevice>=0.4.6  # Audio capture and playback
 numpy>=1.24.0
 
-# LLM Backends
+# Text-to-Speech (TTS)
+piper-tts>=1.2.0  # Fast neural TTS (recommended)
+pyttsx3>=2.90  # Fallback TTS
+# Note: espeak-ng is a system package for ultra-fast fallback
+
+# LLM Backends (optional cloud APIs)
 openai>=1.3.0
 anthropic>=0.7.0
-google-generativeai>=0.3.0
-
-# Text-to-Speech (Offline Primary)
-pyttsx3>=2.90
-# Note: eSpeak and Festival are system packages
-# piper-tts can be installed separately
-
-# Online TTS Fallback
-gTTS>=2.4.0
+# google-generativeai>=0.3.0  # Optional
 
 # Configuration
 PyYAML>=6.0
 jsonschema>=4.19.0
 
 # Desktop Integration
-# python-dbus>=1.3.2  # Not available for Python 3.13 - install via system package: sudo dnf install python3-dbus
 pyatspi>=2.46.0
-
-# Model Context Protocol
-# mcp>=0.1.0  # Add when available
+# python-xlib>=0.33  # Optional: for X11 window manipulation
 
 # Utilities
 importlib-metadata>=6.8.0
-
-
-
+huggingface_hub>=0.20.0  # Model downloads

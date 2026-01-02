@@ -35,6 +35,7 @@ Pipfile.lock
 *.swp
 *.swo
 *~
+.cursor/
 
 # Configuration (may contain API keys)
 config/config.yaml
@@ -49,13 +50,59 @@ logs/
 .DS_Store
 Thumbs.db
 
-# Whisper models
+# Whisper/ML models (large files)
 *.pt
+*.onnx
 models/
 
 # Temporary files
 *.tmp
 *.bak
+*.wav
+*.mp3
 
+# OpenVINO cache directories
+cache/
+bart_cache/
+*.blob
 
+# Vendor libraries (large dependencies, should be built/downloaded locally)
+vendor/
 
+# If tracking vendor source separately, uncomment and use these instead:
+# vendor/MeloTTS.cpp/build/
+# vendor/MeloTTS.cpp/cache/
+# vendor/MeloTTS.cpp/bart_cache/
+# vendor/MeloTTS.cpp/thirdParty/libtorch/
+# vendor/MeloTTS.cpp/demo_audio/*.wav
+# vendor/openvino_genai*/
+
+# Piper voice models (downloaded on first use)
+~/.cache/piper/
+
+# Xenith model cache
+~/.cache/xenith/
+
+# Test output files
+/tmp/xenith_*
+/dev/shm/xenith_*
+
+# Editor/backup files
+\#*\#
+.#*
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# pytest
+.pytest_cache/
+
+# mypy
+.mypy_cache/
+
+# Jupyter
+.ipynb_checkpoints/

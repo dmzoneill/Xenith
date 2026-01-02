@@ -5,14 +5,15 @@ import sys
 import os
 
 # Check for display
-if 'DISPLAY' not in os.environ:
+if "DISPLAY" not in os.environ:
     print("Warning: No DISPLAY environment variable set.")
     print("This test requires a graphical environment.")
     sys.exit(1)
 
 import gi
-gi.require_version('Gtk', '4.0')
-gi.require_version('Adw', '1')
+
+gi.require_version("Gtk", "4.0")
+gi.require_version("Adw", "1")
 
 from gi.repository import Gtk, Adw, GLib
 from src.app import XenithApp
@@ -23,26 +24,26 @@ def simulate_voice_interaction(app):
     widget = app._plasma_widget
     if not widget:
         return
-    
+
     def cycle_states():
         """Cycle through states to demonstrate visual changes"""
         states = [
-            ('idle', 2.0),
-            ('listening', 3.0),  # Simulate listening
-            ('processing', 2.0),  # Simulate processing
-            ('responding', 2.0),  # Simulate response
-            ('idle', 1.0),
+            ("idle", 2.0),
+            ("listening", 3.0),  # Simulate listening
+            ("processing", 2.0),  # Simulate processing
+            ("responding", 2.0),  # Simulate response
+            ("idle", 1.0),
         ]
-        
+
         state_index = [0]
-        
+
         def change_state():
             if state_index[0] < len(states):
                 state, duration = states[state_index[0]]
                 print(f"  → State: {state}")
                 widget.set_state(state)
                 state_index[0] += 1
-                
+
                 if state_index[0] < len(states):
                     # Schedule next state change
                     next_state, next_duration = states[state_index[0]]
@@ -56,12 +57,12 @@ def simulate_voice_interaction(app):
                         print("Voice input started - speak into your microphone!")
                     except Exception as e:
                         print(f"Could not start voice input: {e}")
-            
+
             return False  # Don't repeat
-        
+
         # Start the cycle
         change_state()
-    
+
     # Start state cycle after a short delay
     GLib.timeout_add(1000, cycle_states)
 
@@ -76,9 +77,9 @@ def main():
     print("  - responding (purple)")
     print("  - idle (blue)")
     print("\nPress Ctrl+C to exit.\n")
-    
+
     app = XenithApp()
-    
+
     # Connect to activate to get widget reference
     def on_activate(app_instance):
         widget = app_instance._plasma_widget
@@ -86,9 +87,9 @@ def main():
             print("Plasma widget created!")
             # Start state simulation
             simulate_voice_interaction(app_instance)
-    
-    app.connect('activate', on_activate)
-    
+
+    app.connect("activate", on_activate)
+
     try:
         result = app.run(sys.argv)
         return result
@@ -99,11 +100,11 @@ def main():
     except Exception as e:
         print(f"Error: {e}")
         import traceback
+
         traceback.print_exc()
         app.cleanup()
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())
-
