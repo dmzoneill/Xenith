@@ -9,8 +9,8 @@ torch>=2.0.0
 torchaudio>=2.0.0
 
 # OpenVINO (Intel NPU/GPU/CPU) - Low power, recommended
-openvino>=2024.0.0
-openvino-genai>=2024.0.0
+openvino>=2026.4.1
+openvino-genai>=2026.4.1.0
 # optimum[openvino]>=1.16.0  # Optional: for model conversion
 
 # Audio Input/Output
@@ -18,7 +18,7 @@ sounddevice>=0.4.6  # Audio capture and playback
 numpy>=1.24.0
 
 # Text-to-Speech (TTS)
-piper-tts>=1.2.0  # Fast neural TTS (recommended)
+piper-tts>=1.8.0  # Fast neural TTS (recommended)
 pyttsx3>=2.90  # Fallback TTS
 # Note: espeak-ng is a system package for ultra-fast fallback
 
