@@ -5,7 +5,7 @@ name = "pypi"
 
 [packages]
 # Core Framework
-PyGObject = ">=3.42.0"
+pygobject = ">=3.42.0"
 
 # Speech-to-Text
 openai-whisper = ">=20250625"
@@ -29,7 +29,7 @@ openai = ">=3.35.1"
 anthropic = ">=1.15.0"
 
 # Configuration
-PyYAML = ">=6.0"
+pyyaml = ">=6.0"
 jsonschema = ">=4.26.0"
 
 # Model downloads
