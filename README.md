@@ -45,7 +45,7 @@ Say **"Hi"** to activate, then speak your command!
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────┐
 │                     XENITH VOICE PIPELINE                           │
 ├─────────────────────────────────────────────────────────────────────┤
@@ -103,7 +103,7 @@ Say **"Hi"** to activate, then speak your command!
 
 All audio data flows **in-memory** with zero file I/O in the critical path:
 
-```
+```text
 Mic → numpy → STT(NPU) → text → LLM(CPU) → tokens → TTS(CPU) → numpy → speakers
       ↑                                                              ↑
       └── in-memory ─────────────────────────────────────────────────┘
@@ -152,7 +152,7 @@ audio:
 
 ## Project Structure
 
-```
+```text
 src/
 ├── app.py                  # Main GTK application
 ├── main.py                 # Entry point
