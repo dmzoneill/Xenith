@@ -1,5 +1,9 @@
 # Xenith
 
+<p align="center">
+  <img src=".github/logo.png" alt="Xenith logo" width="128" />
+</p>
+
 **Ultra-fast, on-device voice assistant for Linux**
 
 Xenith is a fully local voice assistant that runs entirely on your hardware with no cloud dependencies. Optimized for Intel Core Ultra processors, it achieves **~1.5-2.5 second response times** from wake word to audio output.
@@ -31,12 +35,12 @@ Say **"Hi"** to activate, then speak your command!
 
 ## Performance
 
-| Stage | Time |
-|-------|------|
-| Wake word → Detection | ~500ms |
-| STT Processing | ~300ms |
-| LLM First Token | ~200ms |
-| TTS → Audio | ~100ms |
+| Stage                    | Time      |
+| ------------------------ | --------- |
+| Wake word → Detection    | ~500ms    |
+| STT Processing           | ~300ms    |
+| LLM First Token          | ~200ms    |
+| TTS → Audio              | ~100ms    |
 | **Total to First Audio** | **~1.5s** |
 
 ## Architecture
@@ -108,11 +112,13 @@ Mic → numpy → STT(NPU) → text → LLM(CPU) → tokens → TTS(CPU) → num
 ## Hardware Requirements
 
 ### Minimum
+
 - Intel Core Ultra (Meteor Lake) or newer
 - 8GB RAM
 - 5GB disk space
 
 ### Recommended
+
 - Intel Core Ultra 7/9
 - 16GB RAM
 - Intel Arc GPU (optional, for larger models)
@@ -130,19 +136,19 @@ llm:
 
 audio:
   stt:
-    device: "auto"  # NPU → Intel GPU → CPU
+    device: "auto" # NPU → Intel GPU → CPU
     model: "base"
   tts:
-    voice: "EN-Default"  # Ryan male voice (high quality)
+    voice: "EN-Default" # Ryan male voice (high quality)
 ```
 
 ## Device Trade-offs
 
-| Device | LLM Warmup | Power | Best For |
-|--------|------------|-------|----------|
-| CPU | ~200ms | ~15-30W | **Fast response (recommended)** |
-| NPU | ~2,300ms | ~3-5W | Battery life |
-| GPU | ~300ms | ~30-50W | Larger models |
+| Device | LLM Warmup | Power   | Best For                        |
+| ------ | ---------- | ------- | ------------------------------- |
+| CPU    | ~200ms     | ~15-30W | **Fast response (recommended)** |
+| NPU    | ~2,300ms   | ~3-5W   | Battery life                    |
+| GPU    | ~300ms     | ~30-50W | Larger models                   |
 
 ## Project Structure
 
@@ -194,18 +200,20 @@ python test_streaming_pipeline.py
 ## Performance Tuning
 
 ### For Fastest Response (~1.5s)
+
 ```yaml
 llm:
-  device: "CPU"  # 12x faster than NPU
+  device: "CPU" # 12x faster than NPU
 audio:
   tts:
-    voice: "EN-Fast"  # Medium quality, faster synthesis
+    voice: "EN-Fast" # Medium quality, faster synthesis
 ```
 
 ### For Lowest Power (~3-5W active)
+
 ```yaml
 llm:
-  device: "NPU"  # Slower but efficient
+  device: "NPU" # Slower but efficient
 audio:
   stt:
     device: "NPU"
@@ -214,4 +222,3 @@ audio:
 ## License
 
 MIT License - See LICENSE file for details.
-
