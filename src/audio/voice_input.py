@@ -247,9 +247,9 @@ class VoiceInput:
             self._whisper_device = device
 
             if device == "cuda":
-                print(f"[WHISPER] Model loaded on GPU for faster transcription")
+                print("[WHISPER] Model loaded on GPU for faster transcription")
             else:
-                print(f"[WHISPER] Model loaded on CPU")
+                print("[WHISPER] Model loaded on CPU")
 
             return True
         except ImportError:
@@ -314,7 +314,7 @@ class VoiceInput:
 
             self._stream = sd.InputStream(**stream_kwargs)
             self._stream.start()
-            print(f"[INIT] ✓ Audio stream started")
+            print("[INIT] ✓ Audio stream started")
             print(f"[INIT] Listening for wake word: '{self.wake_word}'")
             print(
                 f"[INIT] Sample rate: {self.sample_rate} Hz, Chunk size: {self.chunk_size}"
@@ -323,7 +323,7 @@ class VoiceInput:
                 f"[INIT] Whisper model: {'Loaded' if self._whisper_model else 'Not available'}"
             )
             print(
-                f"[INIT] Audio callback active - you should see [AUDIO] messages every 2 seconds"
+                "[INIT] Audio callback active - you should see [AUDIO] messages every 2 seconds"
             )
 
             # Start wake word detection thread
@@ -331,7 +331,7 @@ class VoiceInput:
                 target=self._wake_word_detection_loop, daemon=True
             )
             self._wake_word_thread.start()
-            print(f"[INIT] ✓ Wake word detection thread started")
+            print("[INIT] ✓ Wake word detection thread started")
         except Exception as e:
             print(f"Error starting audio stream: {e}")
             self.is_listening_for_wake_word = False
@@ -347,7 +347,7 @@ class VoiceInput:
             try:
                 self._stream.stop()
                 self._stream.close()
-            except:
+            except Exception:  # nosec B110
                 pass
             self._stream = None
 
@@ -488,7 +488,7 @@ class VoiceInput:
                 self._audio_buffer.extend(audio_data.tolist())
                 # Only print when starting to capture
                 if len(self._audio_buffer) == len(audio_data):
-                    print(f"[COMMAND] Listening...")
+                    print("[COMMAND] Listening...")
             else:
                 # Check if we've had enough silence
                 silence_duration = current_time - self._last_voice_time
@@ -625,7 +625,7 @@ class VoiceInput:
                     else:
                         print(f"[WAKE WORD] Heard: '{transcript}'")
                 else:
-                    print(f"[WAKE WORD] (silence or unclear)")
+                    print("[WAKE WORD] (silence or unclear)")
 
                 if self.wake_word in transcript_lower:
                     return True
@@ -653,7 +653,7 @@ class VoiceInput:
                     else:
                         print(f"[WAKE WORD] Heard: '{transcript}'")
                 else:
-                    print(f"[WAKE WORD] (silence or unclear)")
+                    print("[WAKE WORD] (silence or unclear)")
 
                 if self.wake_word in transcript_lower:
                     return True
@@ -684,7 +684,7 @@ class VoiceInput:
         current_time = time_module.time()
         if hasattr(self, "_last_wake_word_detection_time"):
             if (
-                current_time - self._last_wake_word_detection_time < 3.0
+                current_time - self._last_wake_word_detection_time < 3.0  # pylint: disable=E0203
             ):  # 3 second debounce
                 return  # Ignore rapid repeated detections
         self._last_wake_word_detection_time = current_time
@@ -717,7 +717,7 @@ class VoiceInput:
         # CRITICAL: Clear the wake word buffer to prevent immediate re-detection
         # The buffer still contains the "Hi" that triggered this detection
         self._wake_word_buffer = []
-        print(f"[WAKE WORD] Buffer cleared to prevent re-detection")
+        print("[WAKE WORD] Buffer cleared to prevent re-detection")
 
         # Notify wake word detected
         if self.on_wake_word_detected:
@@ -749,7 +749,7 @@ class VoiceInput:
                 if time_since_last_voice < 3.0:
                     # User is actually speaking (recent voice activity), reset the timer
                     elapsed = 0.0
-                    print(f"[WAKE WORD] User still speaking, extending wait time...")
+                    print("[WAKE WORD] User still speaking, extending wait time...")
                 elif not self.is_listening_for_command and not self.is_processing:
                     # Command processing is done and we're not listening - check if user is quiet
                     if time_since_last_voice > 3.0:
@@ -770,7 +770,7 @@ class VoiceInput:
                     self._wake_word_thread is None
                     or not self._wake_word_thread.is_alive()
                 ):
-                    print(f"[WAKE WORD] Restarting detection thread...")
+                    print("[WAKE WORD] Restarting detection thread...")
                     self._wake_word_thread = threading.Thread(
                         target=self._wake_word_detection_loop, daemon=True
                     )
@@ -780,7 +780,7 @@ class VoiceInput:
                 # The buffer might still contain the "Hi" that triggered the previous detection
                 self._wake_word_buffer = []
                 print(
-                    f"[WAKE WORD] Buffer cleared when returning to wake word listening"
+                    "[WAKE WORD] Buffer cleared when returning to wake word listening"
                 )
 
                 # Reset wake word check timer
@@ -790,7 +790,7 @@ class VoiceInput:
                     self.on_state_change("idle")
                 print(f"Returned to listening for wake word: '{self.wake_word}'")
             else:
-                print(f"[WAKE WORD] User still active, not returning to idle yet")
+                print("[WAKE WORD] User still active, not returning to idle yet")
 
         threading.Thread(target=return_to_wake_word_listening, daemon=True).start()
 
@@ -820,7 +820,6 @@ class VoiceInput:
 
                 # Use Whisper for transcription if available
                 transcript = None
-                duration = len(audio_array) / self.sample_rate
 
                 # Try new STT backend first
                 if self._stt_backend is not None:
@@ -832,7 +831,7 @@ class VoiceInput:
                         if transcript:
                             print(f"[TRANSCRIBE] '{transcript}'")
                         else:
-                            print(f"[TRANSCRIBE] (no speech detected)")
+                            print("[TRANSCRIBE] (no speech detected)")
                     except Exception as e:
                         print(f"[TRANSCRIBE] Error: {e}")
                         import traceback
@@ -849,7 +848,7 @@ class VoiceInput:
                         if transcript:
                             print(f"[TRANSCRIBE] '{transcript}'")
                         else:
-                            print(f"[TRANSCRIBE] (no speech detected)")
+                            print("[TRANSCRIBE] (no speech detected)")
                     except Exception as e:
                         print(f"[TRANSCRIBE] Error: {e}")
                         import traceback

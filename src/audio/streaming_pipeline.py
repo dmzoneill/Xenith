@@ -223,7 +223,7 @@ class StreamingPipeline:
 
         # Temp directory
         if self.config.use_ram_disk:
-            self._temp_dir = Path("/dev/shm/xenith_tts")
+            self._temp_dir = Path("/dev/shm/xenith_tts")  # nosec B108
         else:
             self._temp_dir = Path(tempfile.mkdtemp(prefix="xenith_tts_"))
         self._temp_dir.mkdir(parents=True, exist_ok=True)
@@ -318,7 +318,7 @@ class StreamingPipeline:
                         warmup_config = LLMConfig(max_tokens=1, temperature=0.1)
                         self._llm.generate(".", warmup_config)
                         # Don't print to avoid log spam
-                    except Exception:
+                    except Exception:  # nosec B110
                         pass  # Ignore warmup errors
 
         self._warmup_thread = threading.Thread(

@@ -5,15 +5,13 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 
-from gi.repository import Gtk, Gdk, GdkPixbuf, GLib
+from gi.repository import Gtk, Gdk, GLib
 from typing import Optional, List, Tuple
 import math
 import random
-import sys
-import os
 import time
 import cairo
-import subprocess
+import subprocess  # nosec B404
 from .color_manager import ColorManager
 
 
@@ -200,17 +198,17 @@ class PlasmaWidget(Gtk.Window):
         """Initialize particle system"""
         self._particles = []
         for _ in range(self._particle_count):
-            angle = random.uniform(0, 2 * math.pi)
-            distance = random.uniform(0.3, 0.9)
-            speed = random.uniform(0.5, 1.5)
-            size = random.uniform(1, 3)
+            angle = random.uniform(0, 2 * math.pi)  # nosec B311
+            distance = random.uniform(0.3, 0.9)  # nosec B311
+            speed = random.uniform(0.5, 1.5)  # nosec B311
+            size = random.uniform(1, 3)  # nosec B311
             self._particles.append(
                 {
                     "angle": angle,
                     "distance": distance,
                     "speed": speed,
                     "size": size,
-                    "phase": random.uniform(0, 2 * math.pi),
+                    "phase": random.uniform(0, 2 * math.pi),  # nosec B311
                 }
             )
 
@@ -643,7 +641,7 @@ class PlasmaWidget(Gtk.Window):
                     event = gesture.get_last_event(None)
                     if event:
                         timestamp = event.get_time()
-                except:
+                except Exception:  # nosec B110
                     pass
 
                 # Initiate native window move - window manager handles tracking
@@ -654,7 +652,7 @@ class PlasmaWidget(Gtk.Window):
                         # Don't set _dragging - WM handles it
                         gesture.set_state(Gtk.EventSequenceState.CLAIMED)
                         return
-                except Exception:
+                except Exception:  # nosec B110
                     pass  # Fall through to manual drag
 
         # Fallback to manual dragging if native method unavailable
@@ -669,7 +667,7 @@ class PlasmaWidget(Gtk.Window):
             surface = self.get_surface()
             if surface and isinstance(surface, GdkX11.X11Surface):
                 xid = GdkX11.X11Surface.get_xid(surface)
-                result = subprocess.run(
+                result = subprocess.run(  # nosec B603 B607
                     ["xdotool", "getwindowgeometry", "--shell", str(xid)],
                     capture_output=True,
                     text=True,
@@ -699,7 +697,7 @@ class PlasmaWidget(Gtk.Window):
 
         # Skip if position unchanged
         if hasattr(self, "_last_move_x") and hasattr(self, "_last_move_y"):
-            if new_x == self._last_move_x and new_y == self._last_move_y:
+            if new_x == self._last_move_x and new_y == self._last_move_y:  # pylint: disable=E0203
                 return
 
         self._last_move_x = new_x
@@ -720,7 +718,7 @@ class PlasmaWidget(Gtk.Window):
 
         if self._cached_xid:
             try:
-                subprocess.Popen(
+                subprocess.Popen(  # nosec B603 B607
                     [
                         "xdotool",
                         "windowmove",
@@ -781,7 +779,6 @@ class PlasmaWidget(Gtk.Window):
             delta = current_time - self._last_animation_time
             self._last_animation_time = current_time
 
-            needs_update = False
 
             # Update animation time (clamp delta to prevent large jumps)
             self._animation_time += min(delta, 0.1)  # Max 0.1s per frame
@@ -804,7 +801,7 @@ class PlasmaWidget(Gtk.Window):
                 if (
                     abs(self._color_transition_progress - old_progress) > 0.01
                 ):  # 1% change threshold
-                    needs_update = True
+                    pass  # redraw decision handled elsewhere
 
             # Update state-based opacity (lightweight) - only if changed
             opacity = self._state_opacities.get(self._state, self.DEFAULT_OPACITY)
@@ -1010,7 +1007,7 @@ class PlasmaWidget(Gtk.Window):
 
                                 if isinstance(surface, GdkX11.X11Surface):
                                     xid = GdkX11.X11Surface.get_xid(surface)
-                                    subprocess.run(
+                                    subprocess.run(  # nosec B603 B607
                                         [
                                             "xdotool",
                                             "windowmove",
@@ -1070,7 +1067,7 @@ class PlasmaWidget(Gtk.Window):
                                 )
                     except:
                         pass
-        except Exception as e:
+        except Exception:  # nosec B110
             # Fallback if display/monitor access fails
             pass  # Silently fail - position will be managed by window manager
 

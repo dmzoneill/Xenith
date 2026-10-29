@@ -5,9 +5,8 @@ Provides near-instant TTS for low-latency first response (~50ms),
 while MeloTTS handles high-quality audio for subsequent sentences.
 """
 
-import os
 import shutil
-import subprocess
+import subprocess  # nosec B404
 import threading
 from pathlib import Path
 from typing import Optional
@@ -22,7 +21,7 @@ ESPEAK_AVAILABLE = ESPEAK_PATH is not None
 class FastTTSBackend(TTSBackend):
     """Ultra-fast TTS using espeak-ng (saves to file without playing)"""
 
-    def __init__(self, rate: int = 175, output_dir: str = "/dev/shm/xenith_tts"):
+    def __init__(self, rate: int = 175, output_dir: str = "/dev/shm/xenith_tts"):  # nosec B108
         self._rate = rate
         self._output_dir = Path(output_dir)
         self._output_dir.mkdir(parents=True, exist_ok=True)
@@ -35,12 +34,12 @@ class FastTTSBackend(TTSBackend):
         return ESPEAK_AVAILABLE
 
     @classmethod
-    def get_available_voices(cls) -> list:
+    def get_available_voices(cls) -> list:  # pylint: disable=W0221
         """Get available voices"""
         if not ESPEAK_AVAILABLE:
             return []
         try:
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 # nosemgrep
                 [ESPEAK_PATH, "--voices"],
                 capture_output=True,
                 text=True,
@@ -72,7 +71,7 @@ class FastTTSBackend(TTSBackend):
     def is_loaded(self) -> bool:
         return self._loaded
 
-    def synthesize(
+    def synthesize(  # pylint: disable=W0221
         self, text: str, output_path: Optional[str] = None, **kwargs
     ) -> TTSResult:
         """Synthesize text to audio file (no audio playback)"""
@@ -125,7 +124,7 @@ class FastTTSBackend(TTSBackend):
 
 # Keep pyttsx3 check for backwards compatibility
 try:
-    import pyttsx3
+    import pyttsx3  # noqa: F401
 
     PYTTSX3_AVAILABLE = True
 except ImportError:

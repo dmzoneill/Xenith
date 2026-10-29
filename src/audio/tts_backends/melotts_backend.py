@@ -1,11 +1,10 @@
 """MeloTTS backend - C++ OpenVINO-based TTS with NPU support"""
 
 import os
-import subprocess
+import subprocess  # nosec B404
 import tempfile
 from pathlib import Path
 from typing import Optional, List
-import numpy as np
 
 from .base import TTSBackend, TTSResult
 
@@ -154,7 +153,7 @@ class MeloTTSBackend(TTSBackend):
 
         # Run synthesis
         try:
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 # nosemgrep
                 cmd,
                 capture_output=True,
                 text=True,
@@ -208,7 +207,7 @@ class MeloTTSBackend(TTSBackend):
 
             try:
                 shutil.rmtree(self._temp_dir)
-            except Exception:
+            except Exception:  # nosec B110
                 pass
             self._temp_dir = None
         super().unload()

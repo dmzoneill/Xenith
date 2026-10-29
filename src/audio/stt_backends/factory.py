@@ -11,7 +11,6 @@ _BACKENDS: Dict[str, Type[STTBackend]] = {}
 
 def _register_backends():
     """Register all available backends"""
-    global _BACKENDS
 
     # Try to import and register each backend
 

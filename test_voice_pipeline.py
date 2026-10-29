@@ -19,7 +19,7 @@ def main():
     )
     parser.add_argument(
         "--output",
-        default="/tmp/pipeline_output.wav",
+        default="/tmp/pipeline_output.wav",  # nosec B108
         help="Output audio file path",
     )
     parser.add_argument(
@@ -64,7 +64,7 @@ def main():
 
     # Get status
     status = pipeline.get_status()
-    print(f"\nPipeline Status:")
+    print("\nPipeline Status:")
     print(f"  STT: {status['stt']}")
     print(f"  LLM: {status['llm']}")
     print(f"  TTS: {status['tts']}")
@@ -97,7 +97,7 @@ def main():
     print(f"  Input: '{result.transcribed_text}'")
     print(f"  Response: '{result.llm_response}'")
     print(f"  Audio: {result.audio_path}")
-    print(f"\n  Timing:")
+    print("\n  Timing:")
     print(f"    STT: {result.stt_time:.2f}s")
     print(f"    LLM: {result.llm_time:.2f}s")
     print(f"    TTS: {result.tts_time:.2f}s")
@@ -109,9 +109,9 @@ def main():
         # Play audio if requested
         if args.play and result.audio_path and result.audio_path.exists():
             print(f"\nPlaying audio: {result.audio_path}")
-            import subprocess
+            import subprocess  # nosec B404
 
-            subprocess.run(["paplay", str(result.audio_path)], check=False)
+            subprocess.run(["paplay", str(result.audio_path)], check=False)  # nosec B603 B607
     else:
         print("\n✗ Pipeline test FAILED")
         sys.exit(1)

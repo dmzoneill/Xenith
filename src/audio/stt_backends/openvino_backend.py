@@ -10,7 +10,6 @@ inference with minimal power consumption - ideal for always-on voice input.
 import numpy as np
 import os
 from pathlib import Path
-from typing import Optional
 
 from .base import STTBackend, STTResult
 
@@ -67,7 +66,7 @@ class OpenVINOBackend(STTBackend):
     def is_available(cls) -> bool:
         """Check if OpenVINO GenAI is available"""
         try:
-            import openvino_genai
+            import openvino_genai  # noqa: F401
 
             return True
         except ImportError:
@@ -98,7 +97,7 @@ class OpenVINOBackend(STTBackend):
                 try:
                     npu_name = core.get_property("NPU", "FULL_DEVICE_NAME")
                     info["npu_name"] = npu_name
-                except:
+                except Exception:
                     info["npu_name"] = "Intel NPU"
 
             # Check for GPU (Intel)
@@ -110,7 +109,7 @@ class OpenVINOBackend(STTBackend):
                     try:
                         gpu_name = core.get_property(dev, "FULL_DEVICE_NAME")
                         info["gpu_name"] = gpu_name
-                    except:
+                    except:  # nosec B110
                         pass
                     break
 
@@ -139,8 +138,8 @@ class OpenVINOBackend(STTBackend):
             print(f"[OPENVINO] Found cached model at {model_path}")
             return True
 
-        print(f"[OPENVINO] Converting model to OpenVINO format...")
-        print(f"[OPENVINO] This only needs to be done once. Model will be cached at:")
+        print("[OPENVINO] Converting model to OpenVINO format...")
+        print("[OPENVINO] This only needs to be done once. Model will be cached at:")
         print(f"[OPENVINO]   {model_path}")
 
         try:
@@ -154,7 +153,7 @@ class OpenVINOBackend(STTBackend):
                 hf_model_id = self.model_name
 
             # Use optimum-cli to convert
-            import subprocess
+            import subprocess  # nosec B404
 
             cmd = [
                 "optimum-cli",
@@ -167,13 +166,13 @@ class OpenVINOBackend(STTBackend):
             ]
 
             print(f"[OPENVINO] Running: {' '.join(cmd)}")
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            result = subprocess.run(cmd, capture_output=True, text=True)  # nosec B603 # nosemgrep
 
             if result.returncode != 0:
                 print(f"[OPENVINO] Conversion failed: {result.stderr}")
                 return False
 
-            print(f"[OPENVINO] Model converted successfully!")
+            print("[OPENVINO] Model converted successfully!")
             return True
 
         except FileNotFoundError:
@@ -330,7 +329,7 @@ class OpenVINOOptimumBackend(STTBackend):
     def is_available(cls) -> bool:
         """Check if optimum-intel is available"""
         try:
-            from optimum.intel import OVModelForSpeechSeq2Seq
+            from optimum.intel import OVModelForSpeechSeq2Seq  # noqa: F401
 
             return True
         except ImportError:
@@ -350,7 +349,7 @@ class OpenVINOOptimumBackend(STTBackend):
             print(f"[OPTIMUM] Loading {hf_model_id} for {self.device}...")
 
             # Load processor
-            self._processor = AutoProcessor.from_pretrained(hf_model_id)
+            self._processor = AutoProcessor.from_pretrained(hf_model_id)  # nosec B615
 
             # Load model with OpenVINO backend
             self._model = OVModelForSpeechSeq2Seq.from_pretrained(

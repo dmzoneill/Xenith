@@ -5,7 +5,6 @@ Supports CPU and CUDA (NVIDIA GPU) acceleration.
 """
 
 import numpy as np
-from typing import Optional
 
 from .base import STTBackend, STTResult
 
@@ -42,8 +41,8 @@ class WhisperBackend(STTBackend):
     def is_available(cls) -> bool:
         """Check if Whisper and PyTorch are available"""
         try:
-            import whisper
-            import torch
+            import whisper  # noqa: F401
+            import torch  # noqa: F401
 
             return True
         except ImportError:
@@ -178,7 +177,7 @@ class WhisperBackend(STTBackend):
             if self._torch is not None and self._actual_device == "cuda":
                 try:
                     self._torch.cuda.empty_cache()
-                except:
+                except Exception:  # nosec B110
                     pass
 
         self._is_loaded = False

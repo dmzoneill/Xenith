@@ -12,7 +12,6 @@ Optimizations:
 - Real-time audio playback
 """
 
-import sys
 import argparse
 import time
 
@@ -85,7 +84,7 @@ def main():
         seq_result = pipeline.process_simple(args.prompt)
         seq_total = time.time() - seq_start
         print(f"\nResponse: {seq_result['response']}")
-        print(f"\nSequential timing:")
+        print("\nSequential timing:")
         print(f"  LLM: {seq_result['timing']['llm']:.2f}s")
         print(f"  TTS: {seq_result['timing']['tts']:.2f}s")
         print(f"  Total: {seq_total:.2f}s")
@@ -107,14 +106,14 @@ def main():
     )
     stream_total = time.time() - stream_start
 
-    print(f"\n\n--- Results ---")
+    print("\n\n--- Results ---")
     print(f"Response: {result['response']}")
     print(f"Sentences: {len(result['sentences'])}")
     time_to_first_audio = (
         first_audio_time[0] - stream_start if first_audio_time[0] else None
     )
 
-    print(f"\nStreaming timing:")
+    print("\nStreaming timing:")
     print(
         f"  First token: {result['timing']['first_token']:.2f}s"
         if result["timing"]["first_token"]
@@ -127,7 +126,7 @@ def main():
     print(f"  Total: {stream_total:.2f}s")
 
     if args.compare:
-        print(f"\n--- Comparison ---")
+        print("\n--- Comparison ---")
         print(f"Sequential total: {seq_total:.2f}s (user waits this long)")
         if time_to_first_audio:
             print(f"Streaming first audio: {time_to_first_audio:.2f}s (user hears response)")

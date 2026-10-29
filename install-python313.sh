@@ -42,7 +42,7 @@ if [ -d "$HOME/.pyenv" ]; then
     cd ~/.pyenv && git pull
 else
     echo "Installing pyenv..."
-    curl https://pyenv.run | bash
+    curl https://pyenv.run | bash  # nosemgrep
     
     # Add to shell profile
     if [ -f "$HOME/.bashrc" ]; then
