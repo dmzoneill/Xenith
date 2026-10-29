@@ -5,7 +5,7 @@ name = "pypi"
 
 [packages]
 # Core Framework
-pygobject = ">=3.42.0"
+pygobject = ">=3.58.1"
 
 # Speech-to-Text
 openai-whisper = ">=20250625"
@@ -25,18 +25,18 @@ piper-tts = "*"
 pyttsx3 = ">=2.99"
 
 # LLM APIs (optional cloud fallback)
-openai = ">=3.35.1"
-anthropic = ">=1.15.0"
+openai = ">=3.37.0"
+anthropic = ">=2.3.0"
 
 # Configuration
-pyyaml = ">=6.0"
+pyyaml = ">=6.0.3"
 jsonschema = ">=4.26.0"
 
 # Model downloads
 huggingface_hub = "*"
 
 # Utilities
-importlib-metadata = ">=9.0.1"
+importlib-metadata = ">=10.1.0"
 
 [dev-packages]
 black = "*"
