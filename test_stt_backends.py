@@ -24,7 +24,7 @@ def check_backends():
     print("\n1. OpenAI Whisper (PyTorch/CUDA)")
     print("-" * 40)
     try:
-        import whisper
+        import whisper  # noqa: F401
         import torch
 
         print("   ✓ whisper: installed")
@@ -54,7 +54,7 @@ def check_backends():
             try:
                 npu_name = core.get_property("NPU", "FULL_DEVICE_NAME")
                 print(f"   ✓ NPU: {npu_name}")
-            except:
+            except Exception:
                 print("   ✓ NPU: available")
         else:
             print("   ⚠ NPU: not available")
@@ -75,9 +75,9 @@ def check_backends():
 
     # Check OpenVINO GenAI
     try:
-        import openvino_genai
+        import openvino_genai  # noqa: F401
 
-        print(f"   ✓ openvino_genai: installed")
+        print("   ✓ openvino_genai: installed")
     except ImportError as e:
         print(f"   ⚠ openvino_genai not installed: {e}")
         print("   Install with: pip install openvino-genai")
@@ -86,7 +86,7 @@ def check_backends():
     print("\n3. Optimum Intel (Alternative OpenVINO backend)")
     print("-" * 40)
     try:
-        from optimum.intel import OVModelForSpeechSeq2Seq
+        from optimum.intel import OVModelForSpeechSeq2Seq  # noqa: F401
 
         print("   ✓ optimum-intel: installed")
     except ImportError as e:
@@ -131,7 +131,7 @@ def test_backend(backend_name: str, device: str, model: str = "base"):
 
         result = backend.transcribe(audio, language="en")
         print(f"✓ Transcription result: '{result.text}'")
-        print(f"  (Expected: empty or noise - this is just a test of the pipeline)")
+        print("  (Expected: empty or noise - this is just a test of the pipeline)")
 
         # Cleanup
         backend.unload_model()
@@ -156,7 +156,7 @@ def test_audio_file(audio_path: str, backend_name: str = "auto", device: str = "
         import librosa
 
         # Load audio file
-        print(f"\nLoading audio file...")
+        print("\nLoading audio file...")
         audio, sr = librosa.load(audio_path, sr=16000)
         print(f"✓ Loaded: {len(audio)/sr:.2f} seconds at {sr}Hz")
 

@@ -6,14 +6,14 @@ import threading
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 
-from gi.repository import Gtk, Adw, Gdk, GLib
+from gi.repository import Gtk, Adw, Gdk, GLib  # noqa: F401
 from typing import Optional
 from pathlib import Path
 import yaml
 from .widgets.plasma_widget import PlasmaWidget
 from .audio.voice_input import VoiceInput
 from .audio.streaming_pipeline import StreamingPipeline, StreamingConfig
-from .audio.pipeline_metrics import start_metrics, current_metrics, end_metrics
+from .audio.pipeline_metrics import start_metrics, current_metrics
 
 
 def load_config() -> dict:
@@ -70,7 +70,7 @@ class XenithApp(Adw.Application):
             stt_device = stt_config.get("device", "auto")
             stt_model = stt_config.get("model", "base")
 
-            print(f"\n=== STT Configuration ===")
+            print("\n=== STT Configuration ===")
             print(f"  Backend: {stt_backend}")
             print(f"  Device:  {stt_device}")
             print(f"  Model:   {stt_model}")
@@ -191,12 +191,12 @@ class XenithApp(Adw.Application):
                     GLib.idle_add(self._plasma_widget.set_state, "responding")
 
             try:
-                result = self._voice_pipeline.process_streaming(
+                self._voice_pipeline.process_streaming(
                     text,
                     on_token=lambda t: print(t, end="", flush=True),
                     on_audio_start=on_audio_start,
                 )
-                print(f"\n[APP] Response complete")
+                print("\n[APP] Response complete")
 
                 # Wait for audio to finish playing before resuming listening
                 print("[APP] Waiting for audio playback to finish...")

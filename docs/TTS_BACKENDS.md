@@ -253,7 +253,7 @@ cmake -DUSE_BERT_NPU=ON -S . -B build
 cmake --build build --config Release
 ```
 
-See [MeloTTS Setup](#melotts-installation) for details.
+See [MeloTTS Setup](#melotts) for details.
 
 ## Troubleshooting
 

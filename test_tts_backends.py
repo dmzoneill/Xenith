@@ -49,7 +49,7 @@ def main():
             try:
                 result = tts.synthesize(
                     "Hello! This is a test of the MeloTTS text to speech system.",
-                    output_path=Path("/tmp/tts_test_output.wav"),
+                    output_path=Path("/tmp/tts_test_output.wav"),  # nosec B108
                 )
                 print(f"  ✓ Audio generated: {result.audio_path}")
                 print(f"    Voice: {result.voice}")

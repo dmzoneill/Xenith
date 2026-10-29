@@ -47,7 +47,7 @@ class PiperTTSBackend(TTSBackend):
         self,
         voice: str = "en_US-lessac-medium",
         device: str = "auto",  # Ignored - Piper uses CPU
-        output_dir: str = "/dev/shm/xenith_tts",
+        output_dir: str = "/dev/shm/xenith_tts",  # nosec B108
         **kwargs,
     ):
         # Map MeloTTS-style voice names to Piper voices
@@ -88,8 +88,8 @@ class PiperTTSBackend(TTSBackend):
             model_url = f"{base_url}/{lang}/{voice_dir}/{self._voice_name}.onnx"
             config_url = f"{base_url}/{lang}/{voice_dir}/{self._voice_name}.onnx.json"
 
-            urllib.request.urlretrieve(model_url, model_path)
-            urllib.request.urlretrieve(config_url, config_path)
+            urllib.request.urlretrieve(model_url, model_path)  # nosec B310
+            urllib.request.urlretrieve(config_url, config_path)  # nosec B310
 
             print(f"[PiperTTS] ✓ Downloaded {self._voice_name}")
             return model_path
@@ -109,7 +109,7 @@ class PiperTTSBackend(TTSBackend):
                 return False
 
             # Load voice model (stays in memory)
-            print(f"[PiperTTS] Loading voice model...")
+            print("[PiperTTS] Loading voice model...")
             self._voice = PiperVoice.load(str(self._model_path))
             self._loaded = True
             print(f"[PiperTTS] ✓ Loaded: {self._voice_name}")
@@ -127,7 +127,7 @@ class PiperTTSBackend(TTSBackend):
     def is_loaded(self) -> bool:
         return self._loaded
 
-    def synthesize(
+    def synthesize(  # pylint: disable=W0221
         self, text: str, output_path: Optional[str] = None, **kwargs
     ) -> TTSResult:
         """Synthesize text to audio

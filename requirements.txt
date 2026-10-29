@@ -5,7 +5,7 @@ cairo>=1.21.0
 # Audio Processing - Speech-to-Text (STT)
 # OpenAI Whisper with PyTorch (CUDA/CPU) - High accuracy
 openai-whisper>=20231117
-torch>=2.0.0
+torch>=2.6.0
 torchaudio>=2.0.0
 
 # OpenVINO (Intel NPU/GPU/CPU) - Low power, recommended

@@ -1,6 +1,5 @@
 """OpenVINO LLM backend for NPU/GPU/CPU inference"""
 
-import os
 from pathlib import Path
 from typing import Optional, List, Generator, Dict, Any
 
@@ -149,7 +148,7 @@ class OpenVINOLLMBackend(LLMBackend):
         try:
             from huggingface_hub import snapshot_download
 
-            snapshot_download(
+            snapshot_download(  # nosec B615
                 repo_id=hf_id,
                 local_dir=str(local_path),
                 local_dir_use_symlinks=False,
@@ -327,7 +326,7 @@ class OpenVINOLLMBackend(LLMBackend):
     def is_available(cls) -> bool:
         """Check if OpenVINO GenAI is available"""
         try:
-            import openvino_genai
+            import openvino_genai  # noqa: F401
 
             return True
         except ImportError:

@@ -35,7 +35,7 @@ def main():
 
     # Import LLM backends
     try:
-        from src.audio.llm_backends import (
+        from src.audio.llm_backends import (  # noqa: F401
             get_llm_backend,
             list_available_backends,
             list_available_models,

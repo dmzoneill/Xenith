@@ -16,7 +16,6 @@ def register_backend(name: str, backend_class: Type[TTSBackend]) -> None:
 
 def _load_backends() -> None:
     """Dynamically load and register available backends"""
-    global _BACKENDS
 
     if _BACKENDS:
         return  # Already loaded

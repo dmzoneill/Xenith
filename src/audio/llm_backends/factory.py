@@ -2,7 +2,7 @@
 
 from typing import Optional, List, Type, Dict
 
-from .base import LLMBackend, LLMConfig
+from .base import LLMBackend
 
 
 # Registry of available backends
@@ -16,7 +16,6 @@ def register_backend(name: str, backend_class: Type[LLMBackend]) -> None:
 
 def _load_backends() -> None:
     """Dynamically load and register available backends"""
-    global _BACKENDS
 
     if _BACKENDS:
         return  # Already loaded
@@ -118,7 +117,7 @@ def print_llm_status() -> None:
         device_info = backend_class.get_device_info()
         print(f"  Devices: {device_info.get('devices', [])}")
         print(f"  Default device: {device_info.get('default', 'cpu')}")
-        print(f"  Models:")
+        print("  Models:")
         for model_id, info in backend_class.MODELS.items():
             npu = "✓" if info.get("npu_compatible") else "✗"
             print(

@@ -1,6 +1,6 @@
 """Color management for agents and plasma integration"""
 
-from typing import Dict, Tuple, Optional
+from typing import Dict, Tuple
 import colorsys
 
 
