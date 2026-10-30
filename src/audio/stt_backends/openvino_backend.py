@@ -173,7 +173,7 @@ class OpenVINOBackend(STTBackend):
 
             print(f"[OPENVINO] Running: {' '.join(cmd)}")
             result = subprocess.run(  # nosec B603
-                cmd,  # nosemgrep: validated argv list, no shell
+                cmd,  # nosemgrep
                 capture_output=True,
                 text=True,
                 check=False,
