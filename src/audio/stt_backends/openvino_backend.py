@@ -9,6 +9,7 @@ inference with minimal power consumption - ideal for always-on voice input.
 
 import importlib
 import os
+import re
 import subprocess  # nosec B404 - fixed argv, no shell
 import traceback
 from pathlib import Path
@@ -18,6 +19,10 @@ import numpy as np
 
 from . import _common
 from .base import STTBackend, STTResult
+
+# Hugging Face model id ("name" or "org/name"); must not start with "-" so it
+# can never be parsed as an optimum-cli option.
+HF_MODEL_ID = re.compile(r"[A-Za-z0-9][\w.-]*(/[A-Za-z0-9][\w.-]*)?")
 
 
 class OpenVINOBackend(STTBackend):
@@ -150,7 +155,12 @@ class OpenVINOBackend(STTBackend):
                 # Assume it's already a HF model ID
                 hf_model_id = self.model_name
 
-            # Use optimum-cli to convert
+            if not HF_MODEL_ID.fullmatch(hf_model_id):
+                print(f"[OPENVINO] Refusing invalid model id: {hf_model_id!r}")
+                return False
+
+            # Use optimum-cli to convert (argv list, no shell; the model id is
+            # validated above and the output path is our own cache directory)
             cmd = [
                 "optimum-cli",
                 "export",
@@ -162,8 +172,12 @@ class OpenVINOBackend(STTBackend):
             ]
 
             print(f"[OPENVINO] Running: {' '.join(cmd)}")
-            result = subprocess.run(  # nosec B603 # nosemgrep
-                cmd, capture_output=True, text=True, check=False
+            # nosemgrep
+            result = subprocess.run(  # nosec B603
+                cmd,
+                capture_output=True,
+                text=True,
+                check=False,
             )
 
             if result.returncode != 0:
