@@ -4,9 +4,33 @@ Uses the original OpenAI Whisper model with PyTorch.
 Supports CPU and CUDA (NVIDIA GPU) acceleration.
 """
 
+import importlib
+import importlib.util
+import traceback
+from typing import Any
+
 import numpy as np
 
 from .base import STTBackend, STTResult
+
+# Errors PyTorch / Whisper raise at runtime (CUDA, model-file and tensor
+# problems). Anything else is a programming error and should surface.
+RUNTIME_ERRORS = (
+    RuntimeError,
+    ValueError,
+    TypeError,
+    OSError,
+    AttributeError,
+    KeyError,
+)
+
+
+def _module_available(name: str) -> bool:
+    """True when an optional module can be found, without importing it."""
+    try:
+        return importlib.util.find_spec(name) is not None
+    except (ImportError, ValueError):
+        return False
 
 
 class WhisperBackend(STTBackend):
@@ -33,45 +57,45 @@ class WhisperBackend(STTBackend):
             device: "auto", "cpu", or "cuda"
         """
         super().__init__(model_name, device)
-        self._torch = None
-        self._whisper = None
-        self._actual_device = None
+        self._model: Any = None
+        self._torch: Any = None
+        self._whisper: Any = None
+        self._actual_device: str | None = None
 
     @classmethod
     def is_available(cls) -> bool:
         """Check if Whisper and PyTorch are available"""
-        try:
-            import whisper  # noqa: F401
-            import torch  # noqa: F401
-
-            return True
-        except ImportError:
-            return False
+        return _module_available("whisper") and _module_available("torch")
 
     @classmethod
     def get_device_info(cls) -> dict:
         """Get information about available devices"""
-        info = {"devices": ["cpu"], "default": "cpu", "cuda_available": False}
+        devices = ["cpu"]
+        info: dict[str, Any] = {
+            "devices": devices,
+            "default": "cpu",
+            "cuda_available": False,
+        }
 
         try:
-            import torch
-
-            if torch.cuda.is_available():
-                info["devices"].append("cuda")
-                info["default"] = "cuda"
-                info["cuda_available"] = True
-                info["cuda_device_name"] = torch.cuda.get_device_name(0)
-                info["cuda_version"] = torch.version.cuda
+            torch = importlib.import_module("torch")
         except ImportError:
-            pass
+            return info
+
+        if torch.cuda.is_available():
+            devices.append("cuda")
+            info["default"] = "cuda"
+            info["cuda_available"] = True
+            info["cuda_device_name"] = torch.cuda.get_device_name(0)
+            info["cuda_version"] = torch.version.cuda
 
         return info
 
     def load_model(self) -> bool:
         """Load the Whisper model"""
         try:
-            import whisper
-            import torch
+            whisper = importlib.import_module("whisper")
+            torch = importlib.import_module("torch")
 
             self._whisper = whisper
             self._torch = torch
@@ -80,9 +104,8 @@ class WhisperBackend(STTBackend):
             if self.device == "auto":
                 if torch.cuda.is_available():
                     self._actual_device = "cuda"
-                    print(
-                        f"[WHISPER] GPU acceleration: {torch.cuda.get_device_name(0)}"
-                    )
+                    gpu_name = torch.cuda.get_device_name(0)
+                    print(f"[WHISPER] GPU acceleration: {gpu_name}")
                     print(f"[WHISPER] CUDA version: {torch.version.cuda}")
                 else:
                     self._actual_device = "cpu"
@@ -91,30 +114,28 @@ class WhisperBackend(STTBackend):
                 self._actual_device = self.device
 
             # Load model
-            print(
-                f"[WHISPER] Loading '{self.model_name}' model on {self._actual_device}..."
-            )
-            self._model = whisper.load_model(
-                self.model_name, device=self._actual_device
-            )
+            device = self._actual_device
+            print(f"[WHISPER] Loading '{self.model_name}' model on {device}...")
+            self._model = whisper.load_model(self.model_name, device=device)
             self._is_loaded = True
 
-            print(f"[WHISPER] Model loaded successfully on {self._actual_device}")
+            print(f"[WHISPER] Model loaded successfully on {device}")
             return True
 
         except ImportError as e:
             print(f"[WHISPER] Import error: {e}")
             print("[WHISPER] Install with: pip install openai-whisper torch")
             return False
-        except Exception as e:
+        except RUNTIME_ERRORS as e:
             print(f"[WHISPER] Failed to load model: {e}")
-            import traceback
-
             traceback.print_exc()
             return False
 
     def transcribe(
-        self, audio: np.ndarray, language: str = "en", **kwargs
+        self,
+        audio: np.ndarray,
+        language: str = "en",
+        **kwargs,
     ) -> STTResult:
         """Transcribe audio using Whisper
 
@@ -123,9 +144,8 @@ class WhisperBackend(STTBackend):
             language: Language code
             **kwargs: Additional Whisper options (fp16, beam_size, etc.)
         """
-        if not self._is_loaded:
-            if not self.load_model():
-                return STTResult(text="", language=language)
+        if not self._is_loaded and not self.load_model():
+            return STTResult(text="", language=language)
 
         try:
             # Ensure audio is the right format
@@ -160,10 +180,8 @@ class WhisperBackend(STTBackend):
                 duration=len(audio) / 16000,  # Assuming 16kHz
             )
 
-        except Exception as e:
+        except RUNTIME_ERRORS as e:
             print(f"[WHISPER] Transcription error: {e}")
-            import traceback
-
             traceback.print_exc()
             return STTResult(text="", language=language)
 
@@ -177,8 +195,9 @@ class WhisperBackend(STTBackend):
             if self._torch is not None and self._actual_device == "cuda":
                 try:
                     self._torch.cuda.empty_cache()
-                except Exception:  # nosec B110
-                    pass
+                except RuntimeError as e:
+                    # Freeing the cache is best-effort; the model is already gone.
+                    print(f"[WHISPER] Could not empty CUDA cache: {e}")
 
         self._is_loaded = False
         print("[WHISPER] Model unloaded")
