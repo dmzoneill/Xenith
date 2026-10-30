@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional, List
+
 import numpy as np
 
 
@@ -11,10 +11,10 @@ class STTResult:
     """Result from speech-to-text transcription"""
 
     text: str
-    language: Optional[str] = None
-    confidence: Optional[float] = None
-    segments: Optional[List[dict]] = None  # For word-level timestamps
-    duration: Optional[float] = None  # Audio duration in seconds
+    language: str | None = None
+    confidence: float | None = None
+    segments: list[dict] | None = None  # For word-level timestamps
+    duration: float | None = None  # Audio duration in seconds
 
 
 class STTBackend(ABC):
@@ -28,7 +28,8 @@ class STTBackend(ABC):
         """Initialize the STT backend
 
         Args:
-            model_name: Name/size of the model (e.g., "tiny", "base", "small", "medium", "large")
+            model_name: Name/size of the model
+                (e.g., "tiny", "base", "small", "medium", "large")
             device: Device to run inference on ("auto", "cpu", "cuda", "npu", "gpu")
         """
         self.model_name = model_name
@@ -53,13 +54,14 @@ class STTBackend(ABC):
         Returns:
             True if model loaded successfully, False otherwise
         """
-        pass
 
-    @abstractmethod
     def transcribe(
-        self, audio: np.ndarray, language: str = "en", **kwargs
+        self,
+        audio: np.ndarray,
+        language: str = "en",
+        **kwargs,
     ) -> STTResult:
-        """Transcribe audio to text
+        """Transcribe audio to text, loading the model on first use
 
         Args:
             audio: Audio data as numpy array (float32, mono, 16kHz)
@@ -67,9 +69,15 @@ class STTBackend(ABC):
             **kwargs: Backend-specific options
 
         Returns:
-            STTResult with transcription
+            STTResult with transcription (empty text if the model can't load)
         """
-        pass
+        if not self._is_loaded and not self.load_model():
+            return STTResult(text="", language=language)
+        return self._transcribe(audio, language, **kwargs)
+
+    @abstractmethod
+    def _transcribe(self, audio: np.ndarray, language: str, **kwargs) -> STTResult:
+        """Backend-specific transcription; called once the model is loaded"""
 
     def unload_model(self) -> None:
         """Unload the model to free memory"""
@@ -95,4 +103,5 @@ class STTBackend(ABC):
         return {"devices": [], "default": "cpu"}
 
     def __repr__(self) -> str:
-        return f"{self.name}(model={self.model_name}, device={self.device}, loaded={self._is_loaded})"
+        settings = f"model={self.model_name}, device={self.device}"
+        return f"{self.name}({settings}, loaded={self._is_loaded})"
