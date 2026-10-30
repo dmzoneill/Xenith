@@ -7,11 +7,37 @@ The NPU in Intel Core Ultra processors provides extremely efficient
 inference with minimal power consumption - ideal for always-on voice input.
 """
 
-import numpy as np
+import importlib
+import importlib.util
 import os
+import subprocess  # nosec B404 - fixed argv, no shell
+import traceback
 from pathlib import Path
+from typing import Any, ClassVar
+
+import numpy as np
 
 from .base import STTBackend, STTResult
+
+# Errors the optional OpenVINO / Optimum / Transformers stacks raise at
+# runtime (device, driver, model-file and tensor problems). Anything else is a
+# programming error and should surface instead of being swallowed.
+RUNTIME_ERRORS = (
+    RuntimeError,
+    ValueError,
+    TypeError,
+    OSError,
+    AttributeError,
+    KeyError,
+)
+
+
+def _module_available(name: str) -> bool:
+    """True when an optional module can be found, without importing it."""
+    try:
+        return importlib.util.find_spec(name) is not None
+    except (ImportError, ValueError):
+        return False
 
 
 class OpenVINOBackend(STTBackend):
@@ -40,7 +66,7 @@ class OpenVINOBackend(STTBackend):
     """
 
     # Model name mapping to Hugging Face model IDs
-    MODEL_MAPPING = {
+    MODEL_MAPPING: ClassVar[dict[str, str]] = {
         "tiny": "openai/whisper-tiny",
         "base": "openai/whisper-base",
         "small": "openai/whisper-small",
@@ -58,24 +84,19 @@ class OpenVINOBackend(STTBackend):
             device: "NPU", "GPU", "CPU", or "AUTO"
         """
         super().__init__(model_name, device.upper())
-        self._pipeline = None
+        self._pipeline: Any = None
         self._model_path = None
-        self._ov_genai = None
+        self._ov_genai: Any = None
 
     @classmethod
     def is_available(cls) -> bool:
         """Check if OpenVINO GenAI is available"""
-        try:
-            import openvino_genai  # noqa: F401
-
-            return True
-        except ImportError:
-            return False
+        return _module_available("openvino_genai")
 
     @classmethod
     def get_device_info(cls) -> dict:
         """Get information about available OpenVINO devices"""
-        info = {
+        info: dict[str, Any] = {
             "devices": [],
             "default": "CPU",
             "npu_available": False,
@@ -83,8 +104,7 @@ class OpenVINOBackend(STTBackend):
         }
 
         try:
-            import openvino as ov
-
+            ov = importlib.import_module("openvino")
             core = ov.Core()
             available_devices = core.available_devices
 
@@ -97,7 +117,7 @@ class OpenVINOBackend(STTBackend):
                 try:
                     npu_name = core.get_property("NPU", "FULL_DEVICE_NAME")
                     info["npu_name"] = npu_name
-                except Exception:
+                except RUNTIME_ERRORS:
                     info["npu_name"] = "Intel NPU"
 
             # Check for GPU (Intel)
@@ -107,15 +127,15 @@ class OpenVINOBackend(STTBackend):
                     if not info["npu_available"]:
                         info["default"] = dev
                     try:
-                        gpu_name = core.get_property(dev, "FULL_DEVICE_NAME")
-                        info["gpu_name"] = gpu_name
-                    except:  # nosec B110
-                        pass
+                        info["gpu_name"] = core.get_property(dev, "FULL_DEVICE_NAME")
+                    except RUNTIME_ERRORS as e:
+                        # The GPU is still usable; only its display name is unknown.
+                        info["gpu_name_error"] = str(e)
                     break
 
         except ImportError:
             info["error"] = "OpenVINO not installed"
-        except Exception as e:
+        except RUNTIME_ERRORS as e:
             info["error"] = str(e)
 
         return info
@@ -124,10 +144,8 @@ class OpenVINOBackend(STTBackend):
         """Get or create the path to the converted OpenVINO model"""
         # Use XDG cache directory or ~/.cache
         cache_dir = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
-        model_dir = (
-            cache_dir / "xenith" / "openvino_models" / f"whisper-{self.model_name}"
-        )
-        return model_dir
+        models_root = cache_dir / "xenith" / "openvino_models"
+        return models_root / f"whisper-{self.model_name}"
 
     def _convert_model(self) -> bool:
         """Convert Whisper model to OpenVINO format if needed"""
@@ -153,8 +171,6 @@ class OpenVINOBackend(STTBackend):
                 hf_model_id = self.model_name
 
             # Use optimum-cli to convert
-            import subprocess  # nosec B404
-
             cmd = [
                 "optimum-cli",
                 "export",
@@ -166,7 +182,9 @@ class OpenVINOBackend(STTBackend):
             ]
 
             print(f"[OPENVINO] Running: {' '.join(cmd)}")
-            result = subprocess.run(cmd, capture_output=True, text=True)  # nosec B603 # nosemgrep
+            result = subprocess.run(  # nosec B603 # nosemgrep
+                cmd, capture_output=True, text=True, check=False
+            )
 
             if result.returncode != 0:
                 print(f"[OPENVINO] Conversion failed: {result.stderr}")
@@ -179,18 +197,15 @@ class OpenVINOBackend(STTBackend):
             print("[OPENVINO] optimum-cli not found. Install with:")
             print("[OPENVINO]   pip install optimum[openvino]")
             return False
-        except Exception as e:
+        except (subprocess.SubprocessError, OSError) as e:
             print(f"[OPENVINO] Model conversion error: {e}")
-            import traceback
-
             traceback.print_exc()
             return False
 
     def load_model(self) -> bool:
         """Load the OpenVINO Whisper model"""
         try:
-            import openvino_genai as ov_genai
-
+            ov_genai = importlib.import_module("openvino_genai")
             self._ov_genai = ov_genai
 
             # Check and convert model if needed
@@ -198,19 +213,12 @@ class OpenVINOBackend(STTBackend):
             if not self._convert_model():
                 return False
 
-            # Check for NPU driver issues
-            if self.device == "NPU":
-                # Set environment variable to avoid potential L0 memory issues
-                if os.environ.get("DISABLE_OPENVINO_GENAI_NPU_L0") is None:
-                    # Only set if user hasn't explicitly configured it
-                    # This can help with some NPU driver versions
-                    pass  # Let OpenVINO handle it by default
-
             print(f"[OPENVINO] Loading model on {self.device}...")
 
             # Create the Whisper pipeline
             self._pipeline = ov_genai.WhisperPipeline(
-                str(model_path), device=self.device
+                str(model_path),
+                device=self.device,
             )
 
             self._is_loaded = True
@@ -230,10 +238,8 @@ class OpenVINOBackend(STTBackend):
             print("[OPENVINO] Install with:")
             print("[OPENVINO]   pip install openvino openvino-genai optimum[openvino]")
             return False
-        except Exception as e:
+        except RUNTIME_ERRORS as e:
             print(f"[OPENVINO] Failed to load model: {e}")
-            import traceback
-
             traceback.print_exc()
 
             # Provide helpful error messages
@@ -241,7 +247,7 @@ class OpenVINOBackend(STTBackend):
                 print("\n[OPENVINO] NPU Error Troubleshooting:")
                 print("[OPENVINO] 1. Ensure Intel NPU driver is installed and updated")
                 print(
-                    "[OPENVINO] 2. Check driver version (need 32.0.100.3104 or newer)"
+                    "[OPENVINO] 2. Check driver version (need 32.0.100.3104 or newer)",
                 )
                 print("[OPENVINO] 3. Try: export DISABLE_OPENVINO_GENAI_NPU_L0=1")
                 print("[OPENVINO] 4. Try device='GPU' or device='CPU' as fallback")
@@ -249,7 +255,10 @@ class OpenVINOBackend(STTBackend):
             return False
 
     def transcribe(
-        self, audio: np.ndarray, language: str = "en", **kwargs
+        self,
+        audio: np.ndarray,
+        language: str = "en",
+        **kwargs,
     ) -> STTResult:
         """Transcribe audio using OpenVINO Whisper
 
@@ -258,9 +267,8 @@ class OpenVINOBackend(STTBackend):
             language: Language code
             **kwargs: Additional options (max_new_tokens, etc.)
         """
-        if not self._is_loaded:
-            if not self.load_model():
-                return STTResult(text="", language=language)
+        if not self._is_loaded and not self.load_model():
+            return STTResult(text="", language=language)
 
         try:
             # Ensure audio is the right format
@@ -296,10 +304,8 @@ class OpenVINOBackend(STTBackend):
                 duration=len(audio) / 16000,  # Assuming 16kHz
             )
 
-        except Exception as e:
+        except RUNTIME_ERRORS as e:
             print(f"[OPENVINO] Transcription error: {e}")
-            import traceback
-
             traceback.print_exc()
             return STTResult(text="", language=language)
 
@@ -322,37 +328,34 @@ class OpenVINOOptimumBackend(STTBackend):
 
     def __init__(self, model_name: str = "base", device: str = "NPU"):
         super().__init__(model_name, device.upper())
-        self._processor = None
-        self._model = None
+        self._processor: Any = None
+        self._model: Any = None
 
     @classmethod
     def is_available(cls) -> bool:
         """Check if optimum-intel is available"""
-        try:
-            from optimum.intel import OVModelForSpeechSeq2Seq  # noqa: F401
-
-            return True
-        except ImportError:
-            return False
+        return _module_available("optimum.intel")
 
     def load_model(self) -> bool:
         """Load model using Optimum Intel"""
         try:
-            from optimum.intel import OVModelForSpeechSeq2Seq
-            from transformers import AutoProcessor
+            optimum_intel = importlib.import_module("optimum.intel")
+            ov_model_cls = optimum_intel.OVModelForSpeechSeq2Seq
+            auto_processor = importlib.import_module("transformers").AutoProcessor
 
             # Get model ID
             hf_model_id = OpenVINOBackend.MODEL_MAPPING.get(
-                self.model_name, f"openai/whisper-{self.model_name}"
+                self.model_name,
+                f"openai/whisper-{self.model_name}",
             )
 
             print(f"[OPTIMUM] Loading {hf_model_id} for {self.device}...")
 
             # Load processor
-            self._processor = AutoProcessor.from_pretrained(hf_model_id)  # nosec B615
+            self._processor = auto_processor.from_pretrained(hf_model_id)  # nosec B615
 
             # Load model with OpenVINO backend
-            self._model = OVModelForSpeechSeq2Seq.from_pretrained(
+            self._model = ov_model_cls.from_pretrained(
                 hf_model_id,
                 export=True,  # Export to OpenVINO format
                 device=self.device,
@@ -366,20 +369,20 @@ class OpenVINOOptimumBackend(STTBackend):
             print(f"[OPTIMUM] Import error: {e}")
             print("[OPTIMUM] Install with: pip install optimum[openvino]")
             return False
-        except Exception as e:
+        except RUNTIME_ERRORS as e:
             print(f"[OPTIMUM] Failed to load model: {e}")
-            import traceback
-
             traceback.print_exc()
             return False
 
     def transcribe(
-        self, audio: np.ndarray, language: str = "en", **kwargs
+        self,
+        audio: np.ndarray,
+        language: str = "en",
+        **kwargs,
     ) -> STTResult:
         """Transcribe audio using Optimum Intel"""
-        if not self._is_loaded:
-            if not self.load_model():
-                return STTResult(text="", language=language)
+        if not self._is_loaded and not self.load_model():
+            return STTResult(text="", language=language)
 
         try:
             # Process audio
@@ -392,15 +395,15 @@ class OpenVINOOptimumBackend(STTBackend):
             )
 
             # Decode
-            text = self._processor.batch_decode(
-                generated_ids, skip_special_tokens=True
-            )[0].strip()
+            decoded = self._processor.batch_decode(
+                generated_ids,
+                skip_special_tokens=True,
+            )
+            text = decoded[0].strip()
 
             return STTResult(text=text, language=language, duration=len(audio) / 16000)
 
-        except Exception as e:
+        except RUNTIME_ERRORS as e:
             print(f"[OPTIMUM] Transcription error: {e}")
-            import traceback
-
             traceback.print_exc()
             return STTResult(text="", language=language)
