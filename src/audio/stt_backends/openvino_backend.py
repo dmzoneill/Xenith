@@ -25,6 +25,11 @@ from .base import STTBackend, STTResult
 HF_MODEL_ID = re.compile(r"[A-Za-z0-9][\w.-]*(/[A-Za-z0-9][\w.-]*)?")
 
 
+def _run_cli(args: list[str]) -> subprocess.CompletedProcess[str]:
+    """Run a CLI tool from an argv list (never a shell), capturing output."""
+    return subprocess.run(args, capture_output=True, text=True, check=False)  # nosec
+
+
 class OpenVINOBackend(STTBackend):
     """OpenVINO Whisper backend for Intel hardware
 
@@ -172,12 +177,7 @@ class OpenVINOBackend(STTBackend):
             ]
 
             print(f"[OPENVINO] Running: {' '.join(cmd)}")
-            result = subprocess.run(  # nosec B603
-                cmd,  # nosemgrep
-                capture_output=True,
-                text=True,
-                check=False,
-            )
+            result = _run_cli(cmd)
 
             if result.returncode != 0:
                 print(f"[OPENVINO] Conversion failed: {result.stderr}")
