@@ -5,6 +5,7 @@ Piper keeps models in memory for instant synthesis (~50-100ms per sentence).
 Much faster than MeloTTS which reloads models every call.
 """
 
+import tempfile
 import threading
 import wave
 from pathlib import Path
@@ -47,12 +48,13 @@ class PiperTTSBackend(TTSBackend):
         self,
         voice: str = "en_US-lessac-medium",
         device: str = "auto",  # Ignored - Piper uses CPU
-        output_dir: str = "/dev/shm/xenith_tts",  # nosec B108
+        output_dir: Optional[str] = None,
         **kwargs,
     ):
         # Map MeloTTS-style voice names to Piper voices
         self._voice_name = self.VOICE_MAP.get(voice, voice)
-        self._output_dir = Path(output_dir)
+        # Default to a private (0700) per-instance temp directory
+        self._output_dir = Path(output_dir or tempfile.mkdtemp(prefix="xenith_tts_"))
         self._output_dir.mkdir(parents=True, exist_ok=True)
         self._voice: Optional["PiperVoice"] = None
         self._counter = 0
@@ -83,7 +85,9 @@ class PiperTTSBackend(TTSBackend):
             # Get model URL from Piper voices
             base_url = "https://huggingface.co/rhasspy/piper-voices/resolve/main"
             lang = self._voice_name.split("-")[0]  # en_US -> en
-            voice_dir = self._voice_name.replace("-", "/", 1)  # en_US-lessac-medium -> en_US/lessac-medium
+            voice_dir = self._voice_name.replace(
+                "-", "/", 1
+            )  # en_US-lessac-medium -> en_US/lessac-medium
 
             model_url = f"{base_url}/{lang}/{voice_dir}/{self._voice_name}.onnx"
             config_url = f"{base_url}/{lang}/{voice_dir}/{self._voice_name}.onnx.json"

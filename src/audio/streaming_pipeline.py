@@ -19,7 +19,8 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Callable, List
+from typing import Callable, List, Optional
+
 import numpy as np
 
 try:
@@ -29,10 +30,10 @@ try:
 except ImportError:
     SOUNDDEVICE_AVAILABLE = False
 
-from .llm_backends import get_llm_backend, LLMBackend, LLMConfig
-from .tts_backends import get_tts_backend, TTSBackend
-from .tts_backends.fast_tts import FastTTSBackend, ESPEAK_AVAILABLE
-from .pipeline_metrics import PipelineMetrics, start_metrics, end_metrics
+from .llm_backends import LLMBackend, LLMConfig, get_llm_backend
+from .pipeline_metrics import PipelineMetrics, end_metrics, start_metrics
+from .tts_backends import TTSBackend, get_tts_backend
+from .tts_backends.fast_tts import ESPEAK_AVAILABLE, FastTTSBackend
 
 
 @dataclass
@@ -222,10 +223,9 @@ class StreamingPipeline:
         self._tts_executor = ThreadPoolExecutor(max_workers=self.config.tts_workers)
 
         # Temp directory
-        if self.config.use_ram_disk:
-            self._temp_dir = Path("/dev/shm/xenith_tts")  # nosec B108
-        else:
-            self._temp_dir = Path(tempfile.mkdtemp(prefix="xenith_tts_"))
+        # Private (0700) per-instance temp directory, created securely by mkdtemp.
+        # Set TMPDIR (e.g. to a tmpfs) to keep these files in RAM.
+        self._temp_dir = Path(tempfile.mkdtemp(prefix="xenith_tts_"))
         self._temp_dir.mkdir(parents=True, exist_ok=True)
 
         self._is_loaded = False
@@ -344,6 +344,7 @@ class StreamingPipeline:
                 if result.audio_path:
                     # Load audio from file for playback
                     import wave
+
                     with wave.open(str(result.audio_path), "rb") as wf:
                         audio_data = np.frombuffer(
                             wf.readframes(wf.getnframes()), dtype=np.int16
@@ -441,7 +442,7 @@ class StreamingPipeline:
                     # Incremental decode: only decode new portion
                     # Decode last few tokens for context, extract only new text
                     text = streamer_self.tokenizer.decode(streamer_self.tokens)
-                    new_text = text[streamer_self.prev_text_len:]
+                    new_text = text[streamer_self.prev_text_len :]
                     streamer_self.prev_text_len = len(text)
 
                     if new_text:
@@ -636,7 +637,9 @@ class StreamingPipeline:
 
         # Play directly from memory
         if tts_result.audio_data is not None:
-            self._audio_player.queue_audio(tts_result.audio_data, tts_result.sample_rate)
+            self._audio_player.queue_audio(
+                tts_result.audio_data, tts_result.sample_rate
+            )
 
         return {
             "response": result.text,
