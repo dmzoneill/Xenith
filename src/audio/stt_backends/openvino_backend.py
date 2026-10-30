@@ -26,8 +26,14 @@ HF_MODEL_ID = re.compile(r"[A-Za-z0-9][\w.-]*(/[A-Za-z0-9][\w.-]*)?")
 
 
 def _run_cli(args: list[str]) -> subprocess.CompletedProcess[str]:
-    """Run a CLI tool from an argv list (never a shell), capturing output."""
-    return subprocess.run(args, capture_output=True, text=True, check=False)  # nosec
+    """Run a CLI tool from an argv list (never a shell), capturing output.
+
+    Callers pass a fixed command plus validated arguments (see HF_MODEL_ID).
+    The suppression comments must stay on the call's line, so keep it unsplit.
+    """
+    # fmt: off
+    return subprocess.run(args, capture_output=True, text=True, check=False)  # nosec # nosemgrep
+    # fmt: on
 
 
 class OpenVINOBackend(STTBackend):
