@@ -8,7 +8,6 @@ inference with minimal power consumption - ideal for always-on voice input.
 """
 
 import importlib
-import importlib.util
 import os
 import subprocess  # nosec B404 - fixed argv, no shell
 import traceback
@@ -17,27 +16,8 @@ from typing import Any, ClassVar
 
 import numpy as np
 
+from . import _common
 from .base import STTBackend, STTResult
-
-# Errors the optional OpenVINO / Optimum / Transformers stacks raise at
-# runtime (device, driver, model-file and tensor problems). Anything else is a
-# programming error and should surface instead of being swallowed.
-RUNTIME_ERRORS = (
-    RuntimeError,
-    ValueError,
-    TypeError,
-    OSError,
-    AttributeError,
-    KeyError,
-)
-
-
-def _module_available(name: str) -> bool:
-    """True when an optional module can be found, without importing it."""
-    try:
-        return importlib.util.find_spec(name) is not None
-    except (ImportError, ValueError):
-        return False
 
 
 class OpenVINOBackend(STTBackend):
@@ -91,7 +71,7 @@ class OpenVINOBackend(STTBackend):
     @classmethod
     def is_available(cls) -> bool:
         """Check if OpenVINO GenAI is available"""
-        return _module_available("openvino_genai")
+        return _common.module_available("openvino_genai")
 
     @classmethod
     def get_device_info(cls) -> dict:
@@ -117,7 +97,7 @@ class OpenVINOBackend(STTBackend):
                 try:
                     npu_name = core.get_property("NPU", "FULL_DEVICE_NAME")
                     info["npu_name"] = npu_name
-                except RUNTIME_ERRORS:
+                except _common.RUNTIME_ERRORS:
                     info["npu_name"] = "Intel NPU"
 
             # Check for GPU (Intel)
@@ -128,14 +108,14 @@ class OpenVINOBackend(STTBackend):
                         info["default"] = dev
                     try:
                         info["gpu_name"] = core.get_property(dev, "FULL_DEVICE_NAME")
-                    except RUNTIME_ERRORS as e:
+                    except _common.RUNTIME_ERRORS as e:
                         # The GPU is still usable; only its display name is unknown.
                         info["gpu_name_error"] = str(e)
                     break
 
         except ImportError:
             info["error"] = "OpenVINO not installed"
-        except RUNTIME_ERRORS as e:
+        except _common.RUNTIME_ERRORS as e:
             info["error"] = str(e)
 
         return info
@@ -238,7 +218,7 @@ class OpenVINOBackend(STTBackend):
             print("[OPENVINO] Install with:")
             print("[OPENVINO]   pip install openvino openvino-genai optimum[openvino]")
             return False
-        except RUNTIME_ERRORS as e:
+        except _common.RUNTIME_ERRORS as e:
             print(f"[OPENVINO] Failed to load model: {e}")
             traceback.print_exc()
 
@@ -254,12 +234,7 @@ class OpenVINOBackend(STTBackend):
 
             return False
 
-    def transcribe(
-        self,
-        audio: np.ndarray,
-        language: str = "en",
-        **kwargs,
-    ) -> STTResult:
+    def _transcribe(self, audio: np.ndarray, language: str, **kwargs) -> STTResult:
         """Transcribe audio using OpenVINO Whisper
 
         Args:
@@ -267,18 +242,8 @@ class OpenVINOBackend(STTBackend):
             language: Language code
             **kwargs: Additional options (max_new_tokens, etc.)
         """
-        if not self._is_loaded and not self.load_model():
-            return STTResult(text="", language=language)
-
         try:
-            # Ensure audio is the right format
-            if audio.dtype != np.float32:
-                audio = audio.astype(np.float32)
-
-            # Normalize audio
-            max_val = np.max(np.abs(audio))
-            if max_val > 0:
-                audio = audio / max_val
+            audio = _common.normalize_audio(audio)
 
             # Convert to list (required by OpenVINO GenAI)
             audio_list = audio.tolist()
@@ -304,7 +269,7 @@ class OpenVINOBackend(STTBackend):
                 duration=len(audio) / 16000,  # Assuming 16kHz
             )
 
-        except RUNTIME_ERRORS as e:
+        except _common.RUNTIME_ERRORS as e:
             print(f"[OPENVINO] Transcription error: {e}")
             traceback.print_exc()
             return STTResult(text="", language=language)
@@ -334,7 +299,7 @@ class OpenVINOOptimumBackend(STTBackend):
     @classmethod
     def is_available(cls) -> bool:
         """Check if optimum-intel is available"""
-        return _module_available("optimum.intel")
+        return _common.module_available("optimum.intel")
 
     def load_model(self) -> bool:
         """Load model using Optimum Intel"""
@@ -369,21 +334,11 @@ class OpenVINOOptimumBackend(STTBackend):
             print(f"[OPTIMUM] Import error: {e}")
             print("[OPTIMUM] Install with: pip install optimum[openvino]")
             return False
-        except RUNTIME_ERRORS as e:
-            print(f"[OPTIMUM] Failed to load model: {e}")
-            traceback.print_exc()
-            return False
+        except _common.RUNTIME_ERRORS as e:
+            return _common.load_failed("OPTIMUM", e)
 
-    def transcribe(
-        self,
-        audio: np.ndarray,
-        language: str = "en",
-        **kwargs,
-    ) -> STTResult:
+    def _transcribe(self, audio: np.ndarray, language: str, **kwargs) -> STTResult:
         """Transcribe audio using Optimum Intel"""
-        if not self._is_loaded and not self.load_model():
-            return STTResult(text="", language=language)
-
         try:
             # Process audio
             inputs = self._processor(audio, sampling_rate=16000, return_tensors="pt")
@@ -403,7 +358,7 @@ class OpenVINOOptimumBackend(STTBackend):
 
             return STTResult(text=text, language=language, duration=len(audio) / 16000)
 
-        except RUNTIME_ERRORS as e:
+        except _common.RUNTIME_ERRORS as e:
             print(f"[OPTIMUM] Transcription error: {e}")
             traceback.print_exc()
             return STTResult(text="", language=language)

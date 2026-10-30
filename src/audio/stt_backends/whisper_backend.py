@@ -5,32 +5,13 @@ Supports CPU and CUDA (NVIDIA GPU) acceleration.
 """
 
 import importlib
-import importlib.util
 import traceback
 from typing import Any
 
 import numpy as np
 
+from . import _common
 from .base import STTBackend, STTResult
-
-# Errors PyTorch / Whisper raise at runtime (CUDA, model-file and tensor
-# problems). Anything else is a programming error and should surface.
-RUNTIME_ERRORS = (
-    RuntimeError,
-    ValueError,
-    TypeError,
-    OSError,
-    AttributeError,
-    KeyError,
-)
-
-
-def _module_available(name: str) -> bool:
-    """True when an optional module can be found, without importing it."""
-    try:
-        return importlib.util.find_spec(name) is not None
-    except (ImportError, ValueError):
-        return False
 
 
 class WhisperBackend(STTBackend):
@@ -65,7 +46,7 @@ class WhisperBackend(STTBackend):
     @classmethod
     def is_available(cls) -> bool:
         """Check if Whisper and PyTorch are available"""
-        return _module_available("whisper") and _module_available("torch")
+        return _common.module_available("whisper") and _common.module_available("torch")
 
     @classmethod
     def get_device_info(cls) -> dict:
@@ -126,17 +107,10 @@ class WhisperBackend(STTBackend):
             print(f"[WHISPER] Import error: {e}")
             print("[WHISPER] Install with: pip install openai-whisper torch")
             return False
-        except RUNTIME_ERRORS as e:
-            print(f"[WHISPER] Failed to load model: {e}")
-            traceback.print_exc()
-            return False
+        except _common.RUNTIME_ERRORS as e:
+            return _common.load_failed("WHISPER", e)
 
-    def transcribe(
-        self,
-        audio: np.ndarray,
-        language: str = "en",
-        **kwargs,
-    ) -> STTResult:
+    def _transcribe(self, audio: np.ndarray, language: str, **kwargs) -> STTResult:
         """Transcribe audio using Whisper
 
         Args:
@@ -144,18 +118,8 @@ class WhisperBackend(STTBackend):
             language: Language code
             **kwargs: Additional Whisper options (fp16, beam_size, etc.)
         """
-        if not self._is_loaded and not self.load_model():
-            return STTResult(text="", language=language)
-
         try:
-            # Ensure audio is the right format
-            if audio.dtype != np.float32:
-                audio = audio.astype(np.float32)
-
-            # Normalize audio
-            max_val = np.max(np.abs(audio))
-            if max_val > 0:
-                audio = audio / max_val
+            audio = _common.normalize_audio(audio)
 
             # Whisper options
             fp16 = kwargs.get("fp16", self._actual_device == "cuda")
@@ -180,7 +144,7 @@ class WhisperBackend(STTBackend):
                 duration=len(audio) / 16000,  # Assuming 16kHz
             )
 
-        except RUNTIME_ERRORS as e:
+        except _common.RUNTIME_ERRORS as e:
             print(f"[WHISPER] Transcription error: {e}")
             traceback.print_exc()
             return STTResult(text="", language=language)
