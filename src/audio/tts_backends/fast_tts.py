@@ -7,6 +7,7 @@ while MeloTTS handles high-quality audio for subsequent sentences.
 
 import shutil
 import subprocess  # nosec B404
+import tempfile
 import threading
 from pathlib import Path
 from typing import Optional
@@ -21,9 +22,10 @@ ESPEAK_AVAILABLE = ESPEAK_PATH is not None
 class FastTTSBackend(TTSBackend):
     """Ultra-fast TTS using espeak-ng (saves to file without playing)"""
 
-    def __init__(self, rate: int = 175, output_dir: str = "/dev/shm/xenith_tts"):  # nosec B108
+    def __init__(self, rate: int = 175, output_dir: Optional[str] = None):
         self._rate = rate
-        self._output_dir = Path(output_dir)
+        # Default to a private (0700) per-instance temp directory
+        self._output_dir = Path(output_dir or tempfile.mkdtemp(prefix="xenith_tts_"))
         self._output_dir.mkdir(parents=True, exist_ok=True)
         self._counter = 0
         self._lock = threading.Lock()

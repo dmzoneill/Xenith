@@ -5,13 +5,15 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 
-from gi.repository import Gtk, Gdk, GLib
-from typing import Optional, List, Tuple
 import math
 import random
-import time
-import cairo
 import subprocess  # nosec B404
+import time
+from typing import List, Optional, Tuple
+
+import cairo
+from gi.repository import Gdk, GLib, Gtk
+
 from .color_manager import ColorManager
 
 
@@ -57,13 +59,11 @@ class PlasmaWidget(Gtk.Window):
         # Make window background fully transparent using CSS
         # In GTK4, we handle transparency via CSS and draw handlers
         css_provider = Gtk.CssProvider()
-        css_provider.load_from_data(
-            b"""
+        css_provider.load_from_data(b"""
         window {
             background-color: transparent;
         }
-        """
-        )
+        """)
         style_context = self.get_style_context()
         style_context.add_provider(
             css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
@@ -261,10 +261,7 @@ class PlasmaWidget(Gtk.Window):
         """Logarithmic easing for very smooth fade in/out transitions"""
         # Logarithmic ease-in-out: smooth acceleration and deceleration
         # Uses a logarithmic curve for natural-feeling transitions
-        if t <= 0:
-            return 0.0
-        if t >= 1:
-            return 1.0
+        t = min(max(t, 0.0), 1.0)
 
         # Logarithmic ease-in-out approximation
         # This creates a very smooth S-curve
@@ -697,7 +694,9 @@ class PlasmaWidget(Gtk.Window):
 
         # Skip if position unchanged
         if hasattr(self, "_last_move_x") and hasattr(self, "_last_move_y"):
-            if new_x == self._last_move_x and new_y == self._last_move_y:  # pylint: disable=E0203
+            if (
+                new_x == self._last_move_x and new_y == self._last_move_y
+            ):  # pylint: disable=E0203
                 return
 
         self._last_move_x = new_x
@@ -754,10 +753,7 @@ class PlasmaWidget(Gtk.Window):
             # Use the larger of dx or dy for square resize
             delta = max(abs(dx), abs(dy))
             # Determine direction (positive = grow, negative = shrink)
-            if abs(dx) > abs(dy):
-                delta = dx if dx > 0 else dx
-            else:
-                delta = dy if dy > 0 else dy
+            delta = dx if abs(dx) > abs(dy) else dy
 
             new_size = max(
                 self.MIN_SIZE, min(self.MAX_SIZE, self._resize_start_width + delta)
@@ -778,7 +774,6 @@ class PlasmaWidget(Gtk.Window):
             current_time = time.time()
             delta = current_time - self._last_animation_time
             self._last_animation_time = current_time
-
 
             # Update animation time (clamp delta to prevent large jumps)
             self._animation_time += min(delta, 0.1)  # Max 0.1s per frame
