@@ -2,10 +2,24 @@
 
 import threading
 import time
+import traceback
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from .audio_deps import np
+
+# Errors a listener callback may raise; caught at the callback boundary so they never kill audio threads
+CALLBACK_ERRORS: tuple[type[BaseException], ...] = (
+    RuntimeError,
+    ValueError,
+    TypeError,
+    AttributeError,
+    LookupError,
+    ArithmeticError,
+    OSError,
+    ImportError,
+    AssertionError,
+)
 
 
 @dataclass
@@ -74,10 +88,30 @@ class VoiceCallbacks:
     on_transcript: Callable[[str], None] | None = None
     on_wake_word_detected: Callable[[], None] | None = None
 
-    def state(self, state: str) -> None:
+    @staticmethod
+    def _invoke(name: str, callback: Callable | None, *args) -> bool:
+        """Call a listener; log and contain its errors. Returns False if it raised"""
+        if not callback:
+            return True
+        try:
+            callback(*args)
+        except CALLBACK_ERRORS as e:
+            print(f"[VOICE] {name} callback error: {e}")
+            traceback.print_exc()
+            return False
+        return True
+
+    def state(self, state: str) -> bool:
         """Notify a state change if a listener is set"""
-        if self.on_state_change:
-            self.on_state_change(state)
+        return self._invoke("on_state_change", self.on_state_change, state)
+
+    def transcript(self, text: str) -> bool:
+        """Deliver a transcript if a listener is set"""
+        return self._invoke("on_transcript", self.on_transcript, text)
+
+    def wake_word_detected(self) -> bool:
+        """Notify wake word detection if a listener is set"""
+        return self._invoke("on_wake_word_detected", self.on_wake_word_detected)
 
 
 def normalize(audio_array):

@@ -385,8 +385,7 @@ class VoiceInput:
         self._buffers.wake = []
         print("[WAKE WORD] Buffer cleared to prevent re-detection")
 
-        if self._callbacks.on_wake_word_detected:
-            self._callbacks.on_wake_word_detected()
+        self._callbacks.wake_word_detected()
         self._callbacks.state("listening")
         threading.Thread(target=self._return_to_wake_word_listening, daemon=True).start()
 
@@ -454,8 +453,7 @@ class VoiceInput:
             transcript = self._transcribe_command(audio_array)
             self._callbacks.state("responding")
             time_module.sleep(1.0)  # Simulate response time
-            if self._callbacks.on_transcript:
-                self._callbacks.on_transcript(transcript)
+            self._callbacks.transcript(transcript)
             # The return-to-wake-word thread decides when to go back to idle
         except (*STT_ERRORS, *AUDIO_ERRORS) as e:
             print(f"Error processing audio: {e}")

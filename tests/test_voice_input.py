@@ -248,3 +248,40 @@ class VoiceInputTest(unittest.TestCase):
         self.voice.cleanup()
         self.stt.unload.assert_called_once()
         self.assertEqual(self.states[-1], "idle")
+
+
+@NEEDS_NUMPY
+class RaisingCallbackTest(VoiceInputTest):
+    """Listener errors are contained at the callback boundary"""
+
+    def test_raising_callbacks_do_not_stop_threads(self):
+        """A raising listener neither kills the wake word loop nor the process worker"""
+
+        def explode(*_args):
+            raise RuntimeError("listener bug")
+
+        self.voice.on_state_change = explode
+        self.voice.on_wake_word_detected = explode
+        self.voice.on_transcript = explode
+        self.stt.transcribe.side_effect = ["Hi Xenith", "turn on the lights"]
+        self.voice.start_listening()
+
+        self._feed(0.5, chunks=3)
+        self._thread_target("_wake_word_detection_loop")()  # returns normally despite raising listeners
+        self.now += 2.0
+        self._feed(0.5, chunks=2)
+        self.now += 1.0
+        self._feed(0.0)
+        self._thread_target("_process_worker")()
+        self.assertEqual(self.stt.transcribe.call_count, 2)
+
+        # Recovery: the loop keeps working once a healthy listener is attached
+        self.voice.on_state_change = self.states.append
+        self.voice.stop_listening()
+        self.assertEqual(self.states, ["idle"])
+
+    def test_callbacks_report_failure(self):
+        """VoiceCallbacks returns False when a listener raises"""
+        callbacks = voice_state.VoiceCallbacks(on_transcript=mock.MagicMock(side_effect=ValueError))
+        self.assertFalse(callbacks.transcript("x"))
+        self.assertTrue(callbacks.state("idle"))
