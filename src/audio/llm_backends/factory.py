@@ -121,6 +121,4 @@ def print_llm_status() -> None:
         print("  Models:")
         for model_id, info in backend_class.MODELS.items():
             npu = "✓" if info.get("npu_compatible") else "✗"
-            print(
-                f"    - {model_id} ({info['size']}) NPU:{npu} - {info['description']}"
-            )
+            print(f"    - {model_id} ({info['size']}) NPU:{npu} - {info['description']}")
