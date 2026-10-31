@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, List
+
 import numpy as np
 
 
@@ -11,12 +11,12 @@ import numpy as np
 class TTSResult:
     """Result from text-to-speech synthesis"""
 
-    audio_path: Optional[Path] = None  # Path to generated audio file
-    audio_data: Optional[np.ndarray] = None  # Audio data as numpy array
+    audio_path: Path | None = None  # Path to generated audio file
+    audio_data: np.ndarray | None = None  # Audio data as numpy array
     sample_rate: int = 22050
-    duration: Optional[float] = None  # Audio duration in seconds
-    voice: Optional[str] = None  # Voice/speaker used
-    error: Optional[str] = None  # Error message if synthesis failed
+    duration: float | None = None  # Audio duration in seconds
+    voice: str | None = None  # Voice/speaker used
+    error: str | None = None  # Error message if synthesis failed
 
 
 class TTSBackend(ABC):
@@ -61,13 +61,12 @@ class TTSBackend(ABC):
         Returns:
             True if loaded successfully, False otherwise
         """
-        pass
 
     @abstractmethod
     def synthesize(
         self,
         text: str,
-        output_path: Optional[Path] = None,
+        output_path: Path | None = None,
         speed: float = 1.0,
         **kwargs,
     ) -> TTSResult:
@@ -82,16 +81,14 @@ class TTSBackend(ABC):
         Returns:
             TTSResult with audio data or file path
         """
-        pass
 
     @abstractmethod
-    def get_available_voices(self) -> List[str]:
+    def get_available_voices(self) -> list[str]:
         """Get list of available voices/speakers
 
         Returns:
             List of voice identifiers
         """
-        pass
 
     def unload(self) -> None:
         """Unload backend to free resources"""

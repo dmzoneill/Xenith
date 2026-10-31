@@ -1,7 +1,7 @@
 """Strategy pattern base class"""
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class Strategy(ABC):
@@ -11,13 +11,10 @@ class Strategy(ABC):
     @abstractmethod
     def name(self) -> str:
         """Return the name of this strategy"""
-        pass
 
     @abstractmethod
-    def initialize(self, config: Optional[Dict[str, Any]] = None) -> None:
+    def initialize(self, config: dict[str, Any] | None = None) -> None:
         """Initialize the strategy with configuration"""
-        pass
 
     def cleanup(self) -> None:
         """Cleanup resources (override if needed)"""
-        pass

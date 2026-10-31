@@ -1,8 +1,9 @@
 """Base class for Language Model backends"""
 
 from abc import ABC, abstractmethod
+from collections.abc import Generator
 from dataclasses import dataclass, field
-from typing import Optional, List, Generator, Dict, Any
+from typing import Any, ClassVar
 
 
 @dataclass
@@ -13,7 +14,7 @@ class LLMResult:
     tokens_generated: int = 0
     tokens_per_second: float = 0.0
     finish_reason: str = "stop"  # stop, length, error
-    model: Optional[str] = None
+    model: str | None = None
 
 
 @dataclass
@@ -33,7 +34,7 @@ class LLMConfig:
     top_p: float = 0.9
     top_k: int = 50
     repetition_penalty: float = 1.1
-    stop_sequences: List[str] = field(default_factory=list)
+    stop_sequences: list[str] = field(default_factory=list)
 
 
 class LLMBackend(ABC):
@@ -44,7 +45,7 @@ class LLMBackend(ABC):
     """
 
     # Available models for this backend
-    MODELS: Dict[str, Dict[str, Any]] = {}
+    MODELS: ClassVar[dict[str, dict[str, Any]]] = {}
 
     def __init__(
         self,
@@ -79,14 +80,13 @@ class LLMBackend(ABC):
         Returns:
             True if model loaded successfully, False otherwise
         """
-        pass
 
     @abstractmethod
     def generate(
         self,
         prompt: str,
-        config: Optional[LLMConfig] = None,
-        system_prompt: Optional[str] = None,
+        config: LLMConfig | None = None,
+        system_prompt: str | None = None,
     ) -> LLMResult:
         """Generate text from a prompt
 
@@ -98,14 +98,13 @@ class LLMBackend(ABC):
         Returns:
             LLMResult with generated text
         """
-        pass
 
     @abstractmethod
     def generate_stream(
         self,
         prompt: str,
-        config: Optional[LLMConfig] = None,
-        system_prompt: Optional[str] = None,
+        config: LLMConfig | None = None,
+        system_prompt: str | None = None,
     ) -> Generator[str, None, None]:
         """Generate text with streaming output
 
@@ -117,12 +116,11 @@ class LLMBackend(ABC):
         Yields:
             Generated text tokens
         """
-        pass
 
     def chat(
         self,
-        messages: List[Message],
-        config: Optional[LLMConfig] = None,
+        messages: list[Message],
+        config: LLMConfig | None = None,
     ) -> LLMResult:
         """Chat with conversation history
 
@@ -137,7 +135,7 @@ class LLMBackend(ABC):
         prompt = self._format_messages(messages)
         return self.generate(prompt, config)
 
-    def _format_messages(self, messages: List[Message]) -> str:
+    def _format_messages(self, messages: list[Message]) -> str:
         """Format messages into a prompt string"""
         formatted = []
         for msg in messages:
@@ -165,7 +163,7 @@ class LLMBackend(ABC):
         return False  # Override in subclasses
 
     @classmethod
-    def get_available_models(cls) -> List[str]:
+    def get_available_models(cls) -> list[str]:
         """Get list of available models for this backend
 
         Returns:
@@ -184,4 +182,3 @@ class LLMBackend(ABC):
 
     def __repr__(self) -> str:
         return f"{self.name}(model={self.model}, device={self.device}, loaded={self._is_loaded})"
-

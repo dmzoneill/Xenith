@@ -30,7 +30,7 @@ GPU-only models:
     - deepseek-r1-7b: Reasoning model
 """
 
-from .base import LLMBackend, LLMResult, LLMConfig, Message
+from .base import LLMBackend, LLMConfig, LLMResult, Message
 from .factory import (
     get_llm_backend,
     list_available_backends,
@@ -41,8 +41,8 @@ from .factory import (
 
 __all__ = [
     "LLMBackend",
-    "LLMResult",
     "LLMConfig",
+    "LLMResult",
     "Message",
     "get_llm_backend",
     "list_available_backends",
@@ -50,4 +50,3 @@ __all__ = [
     "print_llm_status",
     "register_backend",
 ]
-
