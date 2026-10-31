@@ -196,14 +196,17 @@ class X11WindowTest(unittest.TestCase):
     """x11_window"""
 
     @mock.patch.object(x11_window.subprocess, "run")
-    def test_run_quiet(self, run):
+    def test_tool_runners(self, run):
         """Returns False when the command cannot run"""
-        self.assertTrue(x11_window.run_quiet(["true"]))
+        self.assertTrue(x11_window.move_window(1, 2, 3))
+        self.assertEqual(run.call_args.args[0], ["xdotool", "windowmove", "1", "2", "3"])
         self.assertFalse(run.call_args.kwargs["check"])
+        self.assertTrue(x11_window.set_utility_type(4))
+        self.assertEqual(run.call_args.args[0][:3], ["xprop", "-id", "4"])
         run.side_effect = FileNotFoundError
-        self.assertFalse(x11_window.run_quiet(["missing"]))
+        self.assertFalse(x11_window.run_wmctrl("-l"))
         run.side_effect = subprocess.TimeoutExpired("x", 0.1)
-        self.assertFalse(x11_window.run_quiet(["slow"]))
+        self.assertFalse(x11_window.run_xprop("-root"))
 
     @mock.patch.object(x11_window.subprocess, "run")
     def test_display_geometry(self, run):
@@ -225,16 +228,15 @@ class X11WindowTest(unittest.TestCase):
         run.side_effect = OSError
         self.assertIsNone(x11_window.window_position(1))
 
-    @mock.patch.object(x11_window, "run_quiet")
-    def test_set_window_above(self, run_quiet):
+    @mock.patch.object(x11_window.subprocess, "run")
+    def test_set_window_above(self, run):
         """Falls back through wmctrl and xdotool only if xprop could run"""
-        run_quiet.return_value = True
         x11_window.set_window_above(7)
-        self.assertEqual(run_quiet.call_count, 3)
-        run_quiet.reset_mock()
-        run_quiet.return_value = False
+        self.assertEqual([call.args[0][0] for call in run.call_args_list], ["xprop", "wmctrl", "xdotool"])
+        run.reset_mock()
+        run.side_effect = FileNotFoundError
         x11_window.set_window_above(7)
-        self.assertEqual(run_quiet.call_count, 1)
+        self.assertEqual(run.call_count, 1)
 
     def test_spawn_quiet(self):
         """Async spawn reports GLib errors"""
