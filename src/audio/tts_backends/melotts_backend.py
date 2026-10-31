@@ -1,10 +1,13 @@
 """MeloTTS backend - C++ OpenVINO-based TTS with NPU support"""
 
+import glob
+import importlib
 import os
+import shutil
 import subprocess  # nosec B404
 import tempfile
 from pathlib import Path
-from typing import Optional, List
+from typing import ClassVar
 
 from .base import TTSBackend, TTSResult
 
@@ -23,7 +26,7 @@ class MeloTTSBackend(TTSBackend):
     """
 
     # Available English voices
-    VOICES = {
+    VOICES: ClassVar[dict[str, str]] = {
         "EN-US": "American English",
         "EN-BR": "British English",
         "EN-INDIA": "Indian English",
@@ -51,7 +54,7 @@ class MeloTTSBackend(TTSBackend):
         super().__init__(voice=voice, device=device, language=language)
         self.use_npu_bert = use_npu_bert
         self.use_quantized = use_quantized
-        self._temp_dir = None
+        self._temp_dir: str | None = None
 
     def load(self) -> bool:
         """Verify MeloTTS is available and ready"""
@@ -67,21 +70,18 @@ class MeloTTSBackend(TTSBackend):
         if self.use_npu_bert and self.language == "EN":
             static_model = MELOTTS_MODELS / "bert_EN_static_int8.xml"
             if not static_model.exists():
-                print(
-                    f"[MeloTTS] NPU static model not found at {static_model}, will use CPU for BERT"
-                )
+                print(f"[MeloTTS] NPU static model not found at {static_model}, using CPU for BERT")
                 self.use_npu_bert = False
 
         self._is_loaded = True
-        print(
-            f"[MeloTTS] Loaded: voice={self.voice}, bert_device={'NPU' if self.use_npu_bert else 'CPU'}"
-        )
+        bert_device = "NPU" if self.use_npu_bert else "CPU"
+        print(f"[MeloTTS] Loaded: voice={self.voice}, bert_device={bert_device}")
         return True
 
     def synthesize(
         self,
         text: str,
-        output_path: Optional[Path] = None,
+        output_path: Path | None = None,
         speed: float = 1.0,
         **kwargs,
     ) -> TTSResult:
@@ -96,9 +96,8 @@ class MeloTTSBackend(TTSBackend):
         Returns:
             TTSResult with audio file path
         """
-        if not self._is_loaded:
-            if not self.load():
-                raise RuntimeError("MeloTTS failed to load")
+        if not self._is_loaded and not self.load():
+            raise RuntimeError("MeloTTS failed to load")
 
         # Create temp dir for input/output
         if self._temp_dir is None:
@@ -115,7 +114,41 @@ class MeloTTSBackend(TTSBackend):
         else:
             output_base = output_path.with_suffix("")  # Remove extension
 
-        # Build command
+        cmd = self._build_command(input_file, output_base, speed)
+
+        # Run synthesis
+        try:
+            result = subprocess.run(  # nosec B603 # nosemgrep
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=60,  # 60 second timeout
+                check=False,
+            )
+
+            if result.returncode != 0:
+                print(f"[MeloTTS] Error: {result.stderr}")
+                raise RuntimeError(f"MeloTTS failed: {result.stderr}")
+
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError("MeloTTS synthesis timed out") from exc
+
+        expected_file = self._find_output(output_base)
+
+        # Move to requested output path if specified
+        final_path = expected_file
+        if output_path and output_path != expected_file:
+            shutil.copy2(expected_file, output_path)
+            final_path = output_path
+
+        return TTSResult(
+            audio_path=final_path,
+            sample_rate=44100,  # MeloTTS outputs 44100 Hz
+            voice=self.voice,
+        )
+
+    def _build_command(self, input_file: Path, output_base: Path, speed: float) -> list[str]:
+        """Build the meloTTS_ov command line"""
         cmd = [
             str(MELOTTS_BIN),
             "--model_dir",
@@ -151,64 +184,28 @@ class MeloTTSBackend(TTSBackend):
         # Disable noise filter for faster synthesis (~1s savings)
         cmd.extend(["--disable_nf", "true"])
 
-        # Run synthesis
-        try:
-            result = subprocess.run(  # nosec B603 # nosemgrep
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=60,  # 60 second timeout
-            )
+        return cmd
 
-            if result.returncode != 0:
-                print(f"[MeloTTS] Error: {result.stderr}")
-                raise RuntimeError(f"MeloTTS failed: {result.stderr}")
+    def _find_output(self, output_base: Path) -> Path:
+        """Find the generated audio file for the requested voice"""
+        expected_file = Path(f"{output_base}_{self.voice}.wav")
+        if expected_file.exists():
+            return expected_file
+        # Fall back to any generated file
+        pattern = f"{output_base}_*.wav"
+        files = glob.glob(pattern)
+        if not files:
+            raise RuntimeError(f"No output audio file found matching {pattern}")
+        return Path(files[0])
 
-        except subprocess.TimeoutExpired:
-            raise RuntimeError("MeloTTS synthesis timed out")
-
-        # Find the generated audio file for the requested voice
-        voice_suffix = self.voice.replace("-", "-")
-        expected_file = Path(f"{output_base}_{voice_suffix}.wav")
-
-        if not expected_file.exists():
-            # Try to find any generated file
-            import glob
-
-            pattern = f"{output_base}_*.wav"
-            files = glob.glob(pattern)
-            if files:
-                expected_file = Path(files[0])
-            else:
-                raise RuntimeError(f"No output audio file found matching {pattern}")
-
-        # Move to requested output path if specified
-        final_path = expected_file
-        if output_path and output_path != expected_file:
-            import shutil
-
-            shutil.copy2(expected_file, output_path)
-            final_path = output_path
-
-        return TTSResult(
-            audio_path=final_path,
-            sample_rate=44100,  # MeloTTS outputs 44100 Hz
-            voice=self.voice,
-        )
-
-    def get_available_voices(self) -> List[str]:
+    def get_available_voices(self) -> list[str]:
         """Get list of available voices"""
         return list(self.VOICES.keys())
 
     def unload(self) -> None:
         """Clean up temp files"""
         if self._temp_dir:
-            import shutil
-
-            try:
-                shutil.rmtree(self._temp_dir)
-            except Exception:  # nosec B110
-                pass
+            shutil.rmtree(self._temp_dir, ignore_errors=True)
             self._temp_dir = None
         super().unload()
 
@@ -224,10 +221,7 @@ class MeloTTSBackend(TTSBackend):
 
         # Check for GPU via OpenVINO
         try:
-            import openvino as ov
-
-            core = ov.Core()
-            available = core.available_devices
+            available = importlib.import_module("openvino").Core().available_devices
             if any("GPU" in d for d in available):
                 devices.append("gpu")
             if "NPU" in available:

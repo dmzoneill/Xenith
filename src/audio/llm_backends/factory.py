@@ -1,15 +1,12 @@
 """Factory for creating LLM backends"""
 
-from typing import Optional, List, Type, Dict
-
 from .base import LLMBackend
 
-
 # Registry of available backends
-_BACKENDS: Dict[str, Type[LLMBackend]] = {}
+_BACKENDS: dict[str, type[LLMBackend]] = {}
 
 
-def register_backend(name: str, backend_class: Type[LLMBackend]) -> None:
+def register_backend(name: str, backend_class: type[LLMBackend]) -> None:
     """Register an LLM backend"""
     _BACKENDS[name.lower()] = backend_class
 
@@ -22,6 +19,8 @@ def _load_backends() -> None:
 
     # Try to import OpenVINO backend
     try:
+        # Optional backend: imported lazily so a missing dependency only disables it.
+        # pylint: disable-next=import-outside-toplevel
         from .openvino_backend import OpenVINOLLMBackend
 
         if OpenVINOLLMBackend.is_available():
@@ -40,7 +39,7 @@ def get_llm_backend(
     model: str = "qwen2.5-1.5b",
     device: str = "auto",
     **kwargs,
-) -> Optional[LLMBackend]:
+) -> LLMBackend | None:
     """Get an LLM backend instance
 
     Args:
@@ -67,7 +66,7 @@ def get_llm_backend(
                 break
         else:
             # Use first available
-            backend = list(_BACKENDS.keys())[0]
+            backend = next(iter(_BACKENDS))
 
     backend = backend.lower()
     if backend not in _BACKENDS:
@@ -81,18 +80,20 @@ def get_llm_backend(
     try:
         instance = backend_class(model=model, device=device, **kwargs)
         return instance
-    except Exception as e:
+    # Backend constructors may raise anything (missing models, device errors); report and fall back.
+    # pylint: disable-next=broad-exception-caught
+    except Exception as e:  # noqa: BLE001
         print(f"[LLM] Failed to create {backend} backend: {e}")
         return None
 
 
-def list_available_backends() -> List[str]:
+def list_available_backends() -> list[str]:
     """List available LLM backends"""
     _load_backends()
     return list(_BACKENDS.keys())
 
 
-def list_available_models(backend: str = "openvino") -> Dict[str, dict]:
+def list_available_models(backend: str = "openvino") -> dict[str, dict]:
     """List available models for a backend"""
     _load_backends()
 
@@ -120,7 +121,4 @@ def print_llm_status() -> None:
         print("  Models:")
         for model_id, info in backend_class.MODELS.items():
             npu = "✓" if info.get("npu_compatible") else "✗"
-            print(
-                f"    - {model_id} ({info['size']}) NPU:{npu} - {info['description']}"
-            )
-
+            print(f"    - {model_id} ({info['size']}) NPU:{npu} - {info['description']}")
