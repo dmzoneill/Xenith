@@ -1,14 +1,14 @@
 """Color management for agents and plasma integration"""
 
-from typing import Dict, Tuple
 import colorsys
+from typing import ClassVar
 
 
 class ColorManager:
     """Manages agent colors and color blending"""
 
     # Predefined agent colors (HSV for easy manipulation)
-    AGENT_COLORS: Dict[str, Tuple[float, float, float]] = {
+    AGENT_COLORS: ClassVar[dict[str, tuple[float, float, float]]] = {
         "general": (0.55, 0.7, 0.9),  # Blue
         "developer": (0.1, 0.8, 0.9),  # Green
         "assistant": (0.0, 0.7, 0.9),  # Red
@@ -18,10 +18,10 @@ class ColorManager:
     }
 
     def __init__(self):
-        self._agent_colors: Dict[str, Tuple[float, float, float]] = {}
+        self._agent_colors: dict[str, tuple[float, float, float]] = {}
         self._active_agents: list[str] = []
 
-    def get_agent_color(self, agent_name: str) -> Tuple[float, float, float]:
+    def get_agent_color(self, agent_name: str) -> tuple[float, float, float]:
         """Get RGB color (0-1) for an agent"""
         if agent_name in self._agent_colors:
             hsv = self._agent_colors[agent_name]
@@ -36,7 +36,7 @@ class ColorManager:
         rgb = colorsys.hsv_to_rgb(hsv[0], hsv[1], hsv[2])
         return rgb
 
-    def _generate_color_from_name(self, name: str) -> Tuple[float, float, float]:
+    def _generate_color_from_name(self, name: str) -> tuple[float, float, float]:
         """Generate a color from agent name (deterministic)"""
         # Simple hash-based color generation
         hash_val = hash(name) % 360
@@ -49,9 +49,7 @@ class ColorManager:
         """Set list of active agents for color blending"""
         self._active_agents = agent_names
 
-    def blend_agent_colors(
-        self, agent_names: list[str]
-    ) -> Tuple[float, float, float, float]:
+    def blend_agent_colors(self, agent_names: list[str]) -> tuple[float, float, float, float]:
         """Blend multiple agent colors and return (R, G, B, intensity)"""
         if not agent_names:
             return (0.0, 0.0, 0.0, 0.0)
@@ -69,7 +67,7 @@ class ColorManager:
 
         return (r, g, b, intensity)
 
-    def get_state_color(self, state: str) -> Tuple[float, float, float]:
+    def get_state_color(self, state: str) -> tuple[float, float, float]:
         """Get base color for a state"""
         state_colors = {
             "idle": (0.2, 0.4, 0.8),  # Cool blue
@@ -79,6 +77,6 @@ class ColorManager:
         }
         return state_colors.get(state, (0.5, 0.5, 0.5))
 
-    def register_agent_color(self, agent_name: str, color: Tuple[float, float, float]):
+    def register_agent_color(self, agent_name: str, color: tuple[float, float, float]):
         """Register a custom color for an agent (HSV)"""
         self._agent_colors[agent_name] = color

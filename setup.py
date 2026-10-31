@@ -1,4 +1,6 @@
-from setuptools import setup, find_packages
+"""Package metadata for Xenith."""
+
+from setuptools import find_packages, setup
 
 setup(
     name="xenith",
@@ -34,6 +36,3 @@ setup(
         ],
     },
 )
-
-
-

@@ -1,6 +1,7 @@
 """Factory pattern base class"""
 
-from typing import Dict, Type, TypeVar, Optional, Any
+from typing import Any, ClassVar, TypeVar
+
 from .strategy import Strategy
 
 T = TypeVar("T", bound=Strategy)
@@ -9,10 +10,10 @@ T = TypeVar("T", bound=Strategy)
 class Factory:
     """Base factory class for creating strategy instances"""
 
-    _strategies: Dict[str, Type[Strategy]] = {}
+    _strategies: ClassVar[dict[str, type[Strategy]]] = {}
 
     @classmethod
-    def register(cls, name: str, strategy_class: Type[T]) -> None:
+    def register(cls, name: str, strategy_class: type[T]) -> None:
         """Register a strategy class with the factory"""
         cls._strategies[name] = strategy_class
 
@@ -23,12 +24,10 @@ class Factory:
             del cls._strategies[name]
 
     @classmethod
-    def create(cls, name: str, config: Optional[Dict[str, Any]] = None) -> Strategy:
+    def create(cls, name: str, config: dict[str, Any] | None = None) -> Strategy:
         """Create an instance of a registered strategy"""
         if name not in cls._strategies:
-            raise ValueError(
-                f"Unknown strategy: {name}. Available: {list(cls._strategies.keys())}"
-            )
+            raise ValueError(f"Unknown strategy: {name}. Available: {list(cls._strategies.keys())}")
 
         strategy_class = cls._strategies[name]
         instance = strategy_class()
