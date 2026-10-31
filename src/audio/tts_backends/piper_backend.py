@@ -119,7 +119,7 @@ class PiperTTSBackend(TTSBackend):
             print(f"[PiperTTS] ✓ Loaded: {self._voice_name}")
             return True
 
-        except (OSError, RuntimeError, ValueError) as e:
+        except (KeyError, OSError, RuntimeError, ValueError) as e:
             print(f"[PiperTTS] Load failed: {e}")
             return False
 
@@ -189,7 +189,7 @@ class PiperTTSBackend(TTSBackend):
                 sample_rate=sample_rate,
             )
 
-        except (OSError, RuntimeError, ValueError) as e:
+        except (wave.Error, OSError, RuntimeError, ValueError) as e:
             return TTSResult(audio_path=None, duration=0.0, error=str(e))
 
     def get_available_voices(self) -> list[str]:

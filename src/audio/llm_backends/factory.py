@@ -82,7 +82,7 @@ def get_llm_backend(
     try:
         instance = backend_class(model=model, device=device, **kwargs)
         return instance
-    except (OSError, RuntimeError, ValueError, TypeError) as e:
+    except (KeyError, OSError, RuntimeError, ValueError, TypeError) as e:
         print(f"[LLM] Failed to create {backend} backend: {e}")
         return None
 

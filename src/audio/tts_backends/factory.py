@@ -81,7 +81,7 @@ def get_tts_backend(
 
     try:
         return backend_class(voice=voice, device=device, **kwargs)
-    except (OSError, RuntimeError, ValueError, TypeError) as e:
+    except (KeyError, OSError, RuntimeError, ValueError, TypeError) as e:
         print(f"[TTS] Failed to create {backend} backend: {e}")
         return None
 
