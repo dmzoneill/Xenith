@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Simple test for plasma widget - minimal GUI test"""
 
-import sys
+# pylint: disable=import-outside-toplevel
+
 import os
+import sys
 
 # Check for display
 if "DISPLAY" not in os.environ:
@@ -11,13 +13,16 @@ if "DISPLAY" not in os.environ:
     print("If running remotely, use X11 forwarding or a virtual display.")
     sys.exit(1)
 
+import importlib
+
 import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 
-from gi.repository import Gtk, Adw, GLib  # noqa: F401
-from src.app import XenithApp
+# gi.require_version() must run before gi.repository is imported
+GLib = importlib.import_module("gi.repository.GLib")
+XenithApp = importlib.import_module("src.app").XenithApp
 
 
 def main():
@@ -30,7 +35,7 @@ def main():
 
     # Test state changes after a delay
     def test_states():
-        widget = app._plasma_widget
+        widget = app._plasma_widget  # pylint: disable=protected-access
         if widget:
             print("Testing state changes...")
             states = ["idle", "listening", "processing", "responding"]
@@ -56,7 +61,7 @@ def main():
     except KeyboardInterrupt:
         print("\nTest interrupted by user.")
         return 0
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
         print(f"Error: {e}")
         import traceback
 

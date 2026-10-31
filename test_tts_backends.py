@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """Test TTS backends"""
 
+# pylint: disable=import-outside-toplevel
+
 import sys
 from pathlib import Path
 
 
 def main():
+    """Probe and exercise each available TTS backend."""
     print("=" * 60)
     print("TTS Backend Test")
     print("=" * 60)
@@ -62,7 +65,7 @@ def main():
                     print("\n  ✓ TTS test PASSED!")
                 else:
                     print("  ✗ Output file not found")
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
                 print(f"  ✗ Synthesis failed: {e}")
         else:
             print("  ✗ Backend failed to load")
@@ -76,11 +79,9 @@ def main():
         for voice in tts.get_available_voices():
             print(f"  - {voice}")
 
-    print("\n" + "=" * 60)
-    print("Test complete!")
-    print("=" * 60)
+    banner = "=" * 60
+    print(f"\n{banner}\nTest complete!\n{banner}")
 
 
 if __name__ == "__main__":
     main()
-
