@@ -1,12 +1,15 @@
 """OpenVINO LLM backend for NPU/GPU/CPU inference"""
 
+import importlib
+import importlib.util
+from collections.abc import Generator
 from pathlib import Path
-from typing import Optional, List, Generator, Dict, Any
+from typing import Any
 
-from .base import LLMBackend, LLMResult, LLMConfig, Message
+from .base import LLMBackend, LLMConfig, LLMResult, Message
 
 # Model registry with HuggingFace paths
-OPENVINO_MODELS: Dict[str, Dict[str, Any]] = {
+OPENVINO_MODELS: dict[str, dict[str, Any]] = {
     # Ultra-small models (NPU optimized)
     "qwen3-0.6b": {
         "hf_id": "OpenVINO/Qwen3-0.6B-int4-ov",
@@ -85,7 +88,7 @@ class OpenVINOLLMBackend(LLMBackend):
         self,
         model: str = "qwen2.5-1.5b",
         device: str = "auto",
-        cache_dir: Optional[Path] = None,
+        cache_dir: Path | None = None,
     ):
         """Initialize OpenVINO LLM backend
 
@@ -98,6 +101,8 @@ class OpenVINOLLMBackend(LLMBackend):
         self.cache_dir = cache_dir or MODEL_CACHE_DIR
         self._tokenizer = None
         self._streamer = None
+        self._ov_genai: Any = None
+        self._pipeline: Any = None
 
     def _resolve_device(self) -> str:
         """Resolve 'auto' device to best available"""
@@ -105,7 +110,7 @@ class OpenVINOLLMBackend(LLMBackend):
             return self.device.upper()
 
         try:
-            import openvino as ov
+            ov = importlib.import_module("openvino")
 
             core = ov.Core()
             available = core.available_devices
@@ -124,6 +129,10 @@ class OpenVINOLLMBackend(LLMBackend):
             return "CPU"
         except ImportError:
             return "CPU"
+
+    def get_model_path(self) -> Path:
+        """Public accessor: local model path, downloading if needed"""
+        return self._get_model_path()
 
     def _get_model_path(self) -> Path:
         """Get local path to model, downloading if needed"""
@@ -146,18 +155,17 @@ class OpenVINOLLMBackend(LLMBackend):
     def _download_model(self, hf_id: str, local_path: Path) -> None:
         """Download model from HuggingFace"""
         try:
-            from huggingface_hub import snapshot_download
+            hf_hub = importlib.import_module("huggingface_hub")
 
-            snapshot_download(  # nosec B615
+            hf_hub.snapshot_download(  # nosec B615
                 repo_id=hf_id,
                 local_dir=str(local_path),
                 local_dir_use_symlinks=False,
             )
             print(f"[LLM] Downloaded to {local_path}")
-        except ImportError:
-            raise RuntimeError(
-                "huggingface_hub not installed. Run: pip install huggingface_hub"
-            )
+        except ImportError as exc:
+            msg = "huggingface_hub not installed. Run: pip install huggingface_hub"
+            raise RuntimeError(msg) from exc
 
     def load(self) -> bool:
         """Load the LLM model"""
@@ -165,7 +173,7 @@ class OpenVINOLLMBackend(LLMBackend):
             return True
 
         try:
-            import openvino_genai as ov_genai
+            ov_genai = importlib.import_module("openvino_genai")
 
             model_path = self._get_model_path()
             device = self._resolve_device()
@@ -174,6 +182,7 @@ class OpenVINOLLMBackend(LLMBackend):
 
             # Create LLM pipeline
             self._pipeline = ov_genai.LLMPipeline(str(model_path), device)
+            self._ov_genai = ov_genai
 
             self._is_loaded = True
             print(f"[LLM] ✓ Loaded {self.model} on {device}")
@@ -182,20 +191,21 @@ class OpenVINOLLMBackend(LLMBackend):
         except ImportError as e:
             print(f"[LLM] openvino_genai not available: {e}")
             return False
-        except Exception as e:
+        # openvino_genai raises varied runtime errors; report and degrade gracefully.
+        # pylint: disable-next=broad-exception-caught
+        except Exception as e:  # noqa: BLE001
             print(f"[LLM] Failed to load model: {e}")
             return False
 
     def generate(
         self,
         prompt: str,
-        config: Optional[LLMConfig] = None,
-        system_prompt: Optional[str] = None,
+        config: LLMConfig | None = None,
+        system_prompt: str | None = None,
     ) -> LLMResult:
         """Generate text from prompt"""
-        if not self._is_loaded:
-            if not self.load():
-                return LLMResult(text="", finish_reason="error")
+        if not self._is_loaded and not self.load():
+            return LLMResult(text="", finish_reason="error")
 
         config = config or LLMConfig()
 
@@ -206,7 +216,7 @@ class OpenVINOLLMBackend(LLMBackend):
             full_prompt = f"User: {prompt}\nAssistant:"
 
         try:
-            import openvino_genai as ov_genai
+            ov_genai = self._ov_genai
 
             # Configure generation
             gen_config = ov_genai.GenerationConfig()
@@ -236,20 +246,21 @@ class OpenVINOLLMBackend(LLMBackend):
                 finish_reason="stop",
             )
 
-        except Exception as e:
+        # openvino_genai raises varied runtime errors; report and degrade gracefully.
+        # pylint: disable-next=broad-exception-caught
+        except Exception as e:  # noqa: BLE001
             print(f"[LLM] Generation error: {e}")
             return LLMResult(text="", finish_reason="error")
 
     def generate_stream(
         self,
         prompt: str,
-        config: Optional[LLMConfig] = None,
-        system_prompt: Optional[str] = None,
+        config: LLMConfig | None = None,
+        system_prompt: str | None = None,
     ) -> Generator[str, None, None]:
         """Generate text with streaming"""
-        if not self._is_loaded:
-            if not self.load():
-                return
+        if not self._is_loaded and not self.load():
+            return
 
         config = config or LLMConfig()
 
@@ -260,7 +271,7 @@ class OpenVINOLLMBackend(LLMBackend):
             full_prompt = f"User: {prompt}\nAssistant:"
 
         try:
-            import openvino_genai as ov_genai
+            ov_genai = self._ov_genai
 
             # Configure generation
             gen_config = ov_genai.GenerationConfig()
@@ -269,24 +280,21 @@ class OpenVINOLLMBackend(LLMBackend):
             gen_config.top_p = config.top_p
             gen_config.top_k = config.top_k
 
-            # Create streamer
-            def streamer_callback(token: str) -> bool:
-                return True  # Continue generation
-
             # Use TextStreamer for streaming
             streamer = ov_genai.TextStreamer(self._pipeline.get_tokenizer())
 
             # Generate with streaming
-            for token in self._pipeline.generate(full_prompt, gen_config, streamer):
-                yield token
+            yield from self._pipeline.generate(full_prompt, gen_config, streamer)
 
-        except Exception as e:
+        # openvino_genai raises varied runtime errors; report and stop the stream.
+        # pylint: disable-next=broad-exception-caught
+        except Exception as e:  # noqa: BLE001
             print(f"[LLM] Streaming error: {e}")
 
     def chat(
         self,
-        messages: List[Message],
-        config: Optional[LLMConfig] = None,
+        messages: list[Message],
+        config: LLMConfig | None = None,
     ) -> LLMResult:
         """Chat with conversation history"""
         # Format messages for chat
@@ -325,19 +333,14 @@ class OpenVINOLLMBackend(LLMBackend):
     @classmethod
     def is_available(cls) -> bool:
         """Check if OpenVINO GenAI is available"""
-        try:
-            import openvino_genai  # noqa: F401
-
-            return True
-        except ImportError:
-            return False
+        return importlib.util.find_spec("openvino_genai") is not None
 
     @classmethod
     def get_device_info(cls) -> dict:
         """Get available OpenVINO devices"""
         devices = ["cpu"]
         try:
-            import openvino as ov
+            ov = importlib.import_module("openvino")
 
             core = ov.Core()
             available = core.available_devices
@@ -354,7 +357,7 @@ class OpenVINOLLMBackend(LLMBackend):
         }
 
 
-def download_model(model: str, cache_dir: Optional[Path] = None) -> Path:
+def download_model(model: str, cache_dir: Path | None = None) -> Path:
     """Download a model from HuggingFace
 
     Args:
@@ -365,10 +368,9 @@ def download_model(model: str, cache_dir: Optional[Path] = None) -> Path:
         Path to downloaded model
     """
     backend = OpenVINOLLMBackend(model=model, cache_dir=cache_dir)
-    return backend._get_model_path()
+    return backend.get_model_path()
 
 
-def list_models() -> Dict[str, Dict[str, Any]]:
+def list_models() -> dict[str, dict[str, Any]]:
     """List all available OpenVINO models"""
     return OPENVINO_MODELS
-

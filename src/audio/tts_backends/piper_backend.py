@@ -7,9 +7,10 @@ Much faster than MeloTTS which reloads models every call.
 
 import tempfile
 import threading
+import urllib.request
 import wave
 from pathlib import Path
-from typing import List, Optional
+from typing import ClassVar
 
 import numpy as np
 
@@ -27,7 +28,7 @@ class PiperTTSBackend(TTSBackend):
     """Fast TTS using Piper with persistent model loading"""
 
     # Available voices (will be downloaded on first use)
-    VOICES = {
+    VOICES: ClassVar[dict[str, str]] = {
         "en_US-amy-medium": "Amy (US, Medium quality)",
         "en_US-lessac-medium": "Lessac (US, Medium quality)",
         "en_GB-alan-medium": "Alan (UK, Medium quality)",
@@ -35,7 +36,7 @@ class PiperTTSBackend(TTSBackend):
 
     # Map MeloTTS voice names to Piper voices
     # Ryan only has "high", lessac has "medium" (faster)
-    VOICE_MAP = {
+    VOICE_MAP: ClassVar[dict[str, str]] = {
         "EN-Default": "en_US-ryan-high",  # Male voice (quality)
         "EN-Fast": "en_US-lessac-medium",  # Fast synthesis (~100ms)
         "EN-US": "en_US-ryan-high",
@@ -48,25 +49,27 @@ class PiperTTSBackend(TTSBackend):
         self,
         voice: str = "en_US-lessac-medium",
         device: str = "auto",  # Ignored - Piper uses CPU
-        output_dir: Optional[str] = None,
+        output_dir: str | None = None,
         **kwargs,
     ):
+        del kwargs  # accepted for factory compatibility; unused by Piper
         # Map MeloTTS-style voice names to Piper voices
         self._voice_name = self.VOICE_MAP.get(voice, voice)
+        super().__init__(voice=self._voice_name, device=device)
         # Default to a private (0700) per-instance temp directory
         self._output_dir = Path(output_dir or tempfile.mkdtemp(prefix="xenith_tts_"))
         self._output_dir.mkdir(parents=True, exist_ok=True)
-        self._voice: Optional["PiperVoice"] = None
+        self._voice: PiperVoice | None = None
         self._counter = 0
         self._lock = threading.Lock()
         self._loaded = False
-        self._model_path: Optional[Path] = None
+        self._model_path: Path | None = None
 
     @classmethod
     def is_available(cls) -> bool:
         return PIPER_AVAILABLE
 
-    def _get_model_path(self) -> Optional[Path]:
+    def _get_model_path(self) -> Path | None:
         """Get or download the voice model"""
         cache_dir = Path.home() / ".cache" / "piper"
         cache_dir.mkdir(parents=True, exist_ok=True)
@@ -80,14 +83,11 @@ class PiperTTSBackend(TTSBackend):
         # Download model
         print(f"[PiperTTS] Downloading voice model: {self._voice_name}...")
         try:
-            import urllib.request
-
             # Get model URL from Piper voices
             base_url = "https://huggingface.co/rhasspy/piper-voices/resolve/main"
             lang = self._voice_name.split("-")[0]  # en_US -> en
-            voice_dir = self._voice_name.replace(
-                "-", "/", 1
-            )  # en_US-lessac-medium -> en_US/lessac-medium
+            # en_US-lessac-medium -> en_US/lessac-medium
+            voice_dir = self._voice_name.replace("-", "/", 1)
 
             model_url = f"{base_url}/{lang}/{voice_dir}/{self._voice_name}.onnx"
             config_url = f"{base_url}/{lang}/{voice_dir}/{self._voice_name}.onnx.json"
@@ -98,7 +98,7 @@ class PiperTTSBackend(TTSBackend):
             print(f"[PiperTTS] ✓ Downloaded {self._voice_name}")
             return model_path
 
-        except Exception as e:
+        except (OSError, ValueError) as e:
             print(f"[PiperTTS] Failed to download model: {e}")
             return None
 
@@ -119,7 +119,9 @@ class PiperTTSBackend(TTSBackend):
             print(f"[PiperTTS] ✓ Loaded: {self._voice_name}")
             return True
 
-        except Exception as e:
+        # piper/onnxruntime raise varied errors on bad models; report and degrade gracefully.
+        # pylint: disable-next=broad-exception-caught
+        except Exception as e:  # noqa: BLE001
             print(f"[PiperTTS] Load failed: {e}")
             return False
 
@@ -131,52 +133,56 @@ class PiperTTSBackend(TTSBackend):
     def is_loaded(self) -> bool:
         return self._loaded
 
-    def synthesize(  # pylint: disable=W0221
-        self, text: str, output_path: Optional[str] = None, **kwargs
+    def synthesize(
+        self,
+        text: str,
+        output_path: Path | str | None = None,
+        speed: float = 1.0,
+        **kwargs,
     ) -> TTSResult:
         """Synthesize text to audio
 
         Args:
             text: Text to synthesize
             output_path: Optional path to save WAV file (if None, only returns audio_data)
-            **kwargs: Additional options
+            speed: Ignored (Piper synthesizes at the model's native rate)
+            **kwargs: Additional options (ignored)
 
         Returns:
             TTSResult with audio_data (numpy array) and optionally audio_path
         """
-        if not self._loaded or not self._voice:
-            if not self.load():
-                return TTSResult(audio_path=None, duration=0.0, error="Not loaded")
+        del speed, kwargs  # interface compatibility with TTSBackend.synthesize
+        if (not self._loaded or not self._voice) and not self.load():
+            return TTSResult(audio_path=None, duration=0.0, error="Not loaded")
+        voice = self._voice
+        if voice is None:
+            return TTSResult(audio_path=None, duration=0.0, error="Not loaded")
 
         try:
             # Synthesize audio chunks directly to memory
-            audio_chunks = list(self._voice.synthesize(text))
+            audio_chunks = list(voice.synthesize(text))
             if not audio_chunks:
-                return TTSResult(
-                    audio_path=None, duration=0.0, error="No audio generated"
-                )
+                return TTSResult(audio_path=None, duration=0.0, error="No audio generated")
 
             # Combine all chunks into bytes
-            all_audio_bytes = b"".join(
-                chunk.audio_int16_bytes for chunk in audio_chunks
-            )
+            all_audio_bytes = b"".join(chunk.audio_int16_bytes for chunk in audio_chunks)
             sample_rate = audio_chunks[0].sample_rate
 
             # Convert to numpy float32 array (what sounddevice expects)
-            audio_data = np.frombuffer(all_audio_bytes, dtype=np.int16)
-            audio_data = audio_data.astype(np.float32) / 32768.0
+            pcm = np.frombuffer(all_audio_bytes, dtype=np.int16)
+            audio_data = pcm.astype(np.float32) / 32768.0
 
             audio_duration = len(audio_data) / sample_rate
 
             # Only write file if explicitly requested
             result_path = None
             if output_path:
-                with wave.open(output_path, "wb") as wav_file:
+                result_path = Path(output_path)
+                with wave.Wave_write(str(result_path)) as wav_file:
                     wav_file.setnchannels(1)
                     wav_file.setsampwidth(2)  # 16-bit
                     wav_file.setframerate(sample_rate)
                     wav_file.writeframes(all_audio_bytes)
-                result_path = output_path
 
             return TTSResult(
                 audio_path=result_path,
@@ -185,10 +191,12 @@ class PiperTTSBackend(TTSBackend):
                 sample_rate=sample_rate,
             )
 
-        except Exception as e:
+        # Synthesis errors are returned in the result rather than raised (caller contract).
+        # pylint: disable-next=broad-exception-caught
+        except Exception as e:  # noqa: BLE001
             return TTSResult(audio_path=None, duration=0.0, error=str(e))
 
-    def get_available_voices(self) -> List[str]:
+    def get_available_voices(self) -> list[str]:
         return list(self.VOICES.keys())
 
     def __repr__(self):
