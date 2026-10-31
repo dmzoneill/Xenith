@@ -1,4 +1,4 @@
-.PHONY: help install install-dev install-system-deps install-whisper install-python313 run test test-voice test-audio clean lint format check-deps shell env-info
+.PHONY: help install install-dev install-system-deps install-whisper install-python313 run test test-unit test-voice test-audio clean lint format check-deps shell env-info
 
 # Default target
 help:
@@ -95,7 +95,11 @@ run:
 	pipenv run python3 -m src.main
 
 # Run all tests
-test: test-voice test-audio
+test: test-unit test-voice test-audio
+
+# Run unit tests
+test-unit:
+	pipenv run python3 -m unittest discover -s tests -t .
 
 # Run voice state test
 test-voice:
