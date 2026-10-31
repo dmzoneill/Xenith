@@ -5,12 +5,14 @@ Provides near-instant TTS for low-latency first response (~50ms),
 while MeloTTS handles high-quality audio for subsequent sentences.
 """
 
+import importlib.util
 import shutil
 import subprocess  # nosec B404
 import tempfile
 import threading
+import time
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 from .base import TTSBackend, TTSResult
 
@@ -22,7 +24,8 @@ ESPEAK_AVAILABLE = ESPEAK_PATH is not None
 class FastTTSBackend(TTSBackend):
     """Ultra-fast TTS using espeak-ng (saves to file without playing)"""
 
-    def __init__(self, rate: int = 175, output_dir: Optional[str] = None):
+    def __init__(self, rate: int = 175, output_dir: str | None = None):
+        super().__init__()
         self._rate = rate
         # Default to a private (0700) per-instance temp directory
         self._output_dir = Path(output_dir or tempfile.mkdtemp(prefix="xenith_tts_"))
@@ -36,9 +39,9 @@ class FastTTSBackend(TTSBackend):
         return ESPEAK_AVAILABLE
 
     @classmethod
-    def get_available_voices(cls) -> list:  # pylint: disable=W0221
+    def get_available_voices(cls) -> list[str]:  # pylint: disable=W0221
         """Get available voices"""
-        if not ESPEAK_AVAILABLE:
+        if ESPEAK_PATH is None:
             return []
         try:
             result = subprocess.run(  # nosec B603 # nosemgrep
@@ -46,6 +49,7 @@ class FastTTSBackend(TTSBackend):
                 capture_output=True,
                 text=True,
                 timeout=5,
+                check=False,
             )
             # Parse voice list
             voices = []
@@ -54,7 +58,7 @@ class FastTTSBackend(TTSBackend):
                 if len(parts) >= 4:
                     voices.append(parts[3])  # Voice name
             return voices[:10] if voices else ["en"]
-        except Exception:
+        except (OSError, subprocess.SubprocessError):
             return ["en"]
 
     def load(self) -> bool:
@@ -74,21 +78,21 @@ class FastTTSBackend(TTSBackend):
         return self._loaded
 
     def synthesize(  # pylint: disable=W0221
-        self, text: str, output_path: Optional[str] = None, **kwargs
+        self,
+        text: str,
+        output_path: Path | str | None = None,
+        speed: float = 1.0,
+        **kwargs: Any,
     ) -> TTSResult:
         """Synthesize text to audio file (no audio playback)"""
-        if not self._loaded:
-            if not self.load():
-                return TTSResult(audio_path="", duration=0.0, error="Not loaded")
+        if ESPEAK_PATH is None or (not self._loaded and not self.load()):
+            return TTSResult(duration=0.0, error="Not loaded")
 
         with self._lock:
             self._counter += 1
-            if not output_path:
-                output_path = str(self._output_dir / f"fast_tts_{self._counter}.wav")
+            target = Path(output_path) if output_path else self._output_dir / f"fast_tts_{self._counter}.wav"
 
         try:
-            import time
-
             start = time.time()
 
             # Use espeak-ng to save to file (no audio output)
@@ -96,44 +100,35 @@ class FastTTSBackend(TTSBackend):
                 [
                     ESPEAK_PATH,
                     "-w",
-                    output_path,  # Write to WAV file
+                    str(target),  # Write to WAV file
                     "-s",
-                    str(self._rate),  # Speed
+                    str(round(self._rate * speed)),  # Speed
                     text,
                 ],
                 capture_output=True,
                 text=True,
                 timeout=10,
+                check=False,
             )
 
             duration = time.time() - start
 
-            if result.returncode == 0 and Path(output_path).exists():
-                return TTSResult(audio_path=output_path, duration=duration)
-            else:
-                return TTSResult(
-                    audio_path="",
-                    duration=0.0,
-                    error=result.stderr or "espeak-ng failed",
-                )
+            if result.returncode == 0 and target.exists():
+                return TTSResult(audio_path=target, duration=duration)
+            return TTSResult(duration=0.0, error=result.stderr or "espeak-ng failed")
 
-        except Exception as e:
-            return TTSResult(audio_path="", duration=0.0, error=str(e))
+        except (OSError, subprocess.SubprocessError) as e:
+            return TTSResult(duration=0.0, error=str(e))
 
     def __repr__(self):
         return f"FastTTSBackend(espeak-ng, rate={self._rate}, loaded={self._loaded})"
 
 
 # Keep pyttsx3 check for backwards compatibility
-try:
-    import pyttsx3  # noqa: F401
-
-    PYTTSX3_AVAILABLE = True
-except ImportError:
-    PYTTSX3_AVAILABLE = False
+PYTTSX3_AVAILABLE = importlib.util.find_spec("pyttsx3") is not None
 
 
-def get_fast_tts() -> Optional[FastTTSBackend]:
+def get_fast_tts() -> FastTTSBackend | None:
     """Get a fast TTS backend if available"""
     if ESPEAK_AVAILABLE:
         backend = FastTTSBackend()
