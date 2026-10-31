@@ -12,11 +12,14 @@ Optimizations:
 - Real-time audio playback
 """
 
+# pylint: disable=import-outside-toplevel,too-many-locals,too-many-statements
+
 import argparse
 import time
 
 
 def main():
+    """Run the streaming pipeline test from the command line."""
     parser = argparse.ArgumentParser(description="Test streaming pipeline")
     parser.add_argument(
         "--prompt",
@@ -44,7 +47,7 @@ def main():
     print("Streaming Pipeline Test")
     print("=" * 70)
 
-    from src.audio.streaming_pipeline import StreamingPipeline, StreamingConfig
+    from src.audio.streaming_pipeline import StreamingConfig, StreamingPipeline
 
     config = StreamingConfig(
         llm_model=args.model,
@@ -65,11 +68,7 @@ def main():
         print(token, end="", flush=True)
 
     def on_sentence(sentence):
-        print(
-            f"\n  [TTS queued: '{sentence[:50]}...']"
-            if len(sentence) > 50
-            else f"\n  [TTS queued: '{sentence}']"
-        )
+        print(f"\n  [TTS queued: '{sentence[:50]}...']" if len(sentence) > 50 else f"\n  [TTS queued: '{sentence}']")
 
     first_audio_time = [None]  # Use list to allow closure modification
 
@@ -109,9 +108,7 @@ def main():
     print("\n\n--- Results ---")
     print(f"Response: {result['response']}")
     print(f"Sentences: {len(result['sentences'])}")
-    time_to_first_audio = (
-        first_audio_time[0] - stream_start if first_audio_time[0] else None
-    )
+    time_to_first_audio = first_audio_time[0] - stream_start if first_audio_time[0] else None
 
     print("\nStreaming timing:")
     print(

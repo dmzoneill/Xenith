@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """Test LLM backends"""
 
-import sys
+# pylint: disable=import-outside-toplevel,too-many-statements
+
 import argparse
+import sys
 
 
 def main():
+    """Probe and exercise the available LLM backends."""
     parser = argparse.ArgumentParser(description="Test LLM backends")
     parser.add_argument(
         "--model",
@@ -35,10 +38,9 @@ def main():
 
     # Import LLM backends
     try:
-        from src.audio.llm_backends import (  # noqa: F401
+        from src.audio.llm_backends import (
             get_llm_backend,
             list_available_backends,
-            list_available_models,
             print_llm_status,
         )
 
@@ -105,11 +107,9 @@ def main():
     # Cleanup
     llm.unload()
 
-    print("\n" + "=" * 60)
-    print("Test complete!")
-    print("=" * 60)
+    banner = "=" * 60
+    print(f"\n{banner}\nTest complete!\n{banner}")
 
 
 if __name__ == "__main__":
     main()
-

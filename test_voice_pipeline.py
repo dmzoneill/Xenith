@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """Test the complete voice pipeline: STT → LLM → TTS"""
 
-import sys
+# pylint: disable=import-outside-toplevel,too-many-statements
+
 import argparse
+import sys
 from pathlib import Path
 
 
 def main():
+    """Run the STT -> LLM -> TTS pipeline test."""
     parser = argparse.ArgumentParser(description="Test voice pipeline")
     parser.add_argument(
         "--text",
@@ -75,8 +78,9 @@ def main():
     if args.audio:
         # Process audio file
         print(f"\n--- Processing Audio: {args.audio} ---")
-        import numpy as np
         import wave
+
+        import numpy as np
 
         with wave.open(args.audio, "rb") as wf:
             audio_data = np.frombuffer(wf.readframes(wf.getnframes()), dtype=np.int16)
@@ -126,4 +130,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

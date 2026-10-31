@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 """Test script for plasma widget"""
 
+import importlib
 import sys
+
 import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 
-from gi.repository import Gtk, Adw, GLib  # noqa: F401
-from src.app import XenithApp
+# gi.require_version() must run before gi.repository is imported
+GLib = importlib.import_module("gi.repository.GLib")
+XenithApp = importlib.import_module("src.app").XenithApp
 
 
 def test_state_changes(widget):
@@ -54,7 +57,7 @@ def main():
 
     # Get the widget after activation
     def on_activate(app_instance):
-        widget = app_instance._plasma_widget
+        widget = app_instance._plasma_widget  # pylint: disable=protected-access
         widget_ref[0] = widget
         if widget:
             # Start test sequences
