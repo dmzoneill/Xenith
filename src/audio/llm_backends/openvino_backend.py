@@ -191,7 +191,7 @@ class OpenVINOLLMBackend(LLMBackend):
         except ImportError as e:
             print(f"[LLM] openvino_genai not available: {e}")
             return False
-        except (ImportError, KeyError, OSError, RuntimeError, ValueError) as e:
+        except (KeyError, OSError, RuntimeError, ValueError) as e:
             print(f"[LLM] Failed to load model: {e}")
             return False
 
