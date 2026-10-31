@@ -1,7 +1,6 @@
 """Color state for the plasma widget: state colors, transitions and agent tint"""
 
 import time
-from typing import Optional
 
 from .color_manager import ColorManager
 from .plasma_easing import RGB, ease_in_out_logarithmic, lerp_color
@@ -48,7 +47,7 @@ class ColorTransition:
             return lerp_color(self.current, self.target, ease_in_out_logarithmic(self.progress))
         return self.target
 
-    def start(self, target: RGB, now: Optional[float] = None) -> None:
+    def start(self, target: RGB, now: float | None = None) -> None:
         """Begin a transition from the displayed color to ``target``"""
         # Capture the displayed color BEFORE changing anything to prevent flashes
         captured = self.displayed_color()
@@ -70,13 +69,13 @@ class ColorTransition:
 class AgentTint:
     """Agent color blended on top of the state color"""
 
-    def __init__(self, color_manager: Optional[ColorManager] = None):
+    def __init__(self, color_manager: ColorManager | None = None):
         self.color_manager = color_manager or ColorManager()
-        self.color: Optional[RGB] = None  # RGB 0-1
+        self.color: RGB | None = None  # RGB 0-1
         self.intensity: float = 0.0  # 0.0 to 1.0
         self.active_agents: list[str] = []
 
-    def set_color(self, color: Optional[RGB], intensity: float) -> None:
+    def set_color(self, color: RGB | None, intensity: float) -> None:
         """Set the tint color and clamp its intensity to 0-1"""
         self.color = color
         self.intensity = max(0.0, min(1.0, intensity))
@@ -113,6 +112,6 @@ class PlasmaPalette:
         """Current base color, blended with the agent color"""
         return self.tint.apply(self.transition.displayed_color())
 
-    def transition_to_state(self, state: str, now: Optional[float] = None) -> None:
+    def transition_to_state(self, state: str, now: float | None = None) -> None:
         """Start a color transition towards ``state``'s base color"""
         self.transition.start(STATE_BASE_COLORS.get(state, FALLBACK_COLOR), now)

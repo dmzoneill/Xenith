@@ -13,4 +13,4 @@ Gdk: Any = importlib.import_module("gi.repository.Gdk")
 GLib: Any = importlib.import_module("gi.repository.GLib")
 Gtk: Any = importlib.import_module("gi.repository.Gtk")
 
-__all__ = ["Gdk", "GLib", "Gtk"]
+__all__ = ["GLib", "Gdk", "Gtk"]

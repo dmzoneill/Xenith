@@ -2,7 +2,6 @@
 
 import importlib
 import subprocess  # nosec B404
-from typing import Optional
 
 from .gtk4 import GLib
 from .plasma_geometry import Area
@@ -10,7 +9,7 @@ from .plasma_geometry import Area
 COMMAND_ERRORS = (OSError, subprocess.SubprocessError)
 
 
-def get_xid(surface) -> Optional[int]:
+def get_xid(surface) -> int | None:
     """X11 window id of a GDK surface, or None if it is not an X11 surface"""
     if not surface:
         return None
@@ -35,7 +34,7 @@ def run_quiet(args: list[str], timeout: float = 0.1) -> bool:
     return True
 
 
-def run_capture(args: list[str], timeout: float) -> Optional[str]:
+def run_capture(args: list[str], timeout: float) -> str | None:
     """Run a command and return its stdout, or None if it failed"""
     result = subprocess.run(args, capture_output=True, text=True, timeout=timeout, check=False)  # nosec B603 B607
     if result.returncode != 0:
@@ -53,7 +52,7 @@ def spawn_quiet(args: list[str]) -> bool:
     return True
 
 
-def display_geometry() -> Optional[Area]:
+def display_geometry() -> Area | None:
     """Screen size from ``xdotool getdisplaygeometry``, or None if unavailable"""
     try:
         output = run_capture(["xdotool", "getdisplaygeometry"], timeout=0.1)
@@ -64,11 +63,11 @@ def display_geometry() -> Optional[Area]:
         if len(parts) < 2:
             return None
         return Area(0, 0, int(parts[0]), int(parts[1]))
-    except COMMAND_ERRORS + (ValueError,):
+    except (*COMMAND_ERRORS, ValueError):
         return None
 
 
-def window_position(xid: int) -> Optional[dict[str, int]]:
+def window_position(xid: int) -> dict[str, int] | None:
     """Window X/Y from ``xdotool getwindowgeometry``; {} if xdotool failed, None on error"""
     try:
         output = run_capture(["xdotool", "getwindowgeometry", "--shell", str(xid)], timeout=0.05)
@@ -76,11 +75,11 @@ def window_position(xid: int) -> Optional[dict[str, int]]:
             return {}
         position = {}
         for line in output.split("\n"):
-            if line.startswith("X=") or line.startswith("Y="):
+            if line.startswith(("X=", "Y=")):
                 key, value = line.split("=", 1)
                 position[key] = int(value)
         return position
-    except COMMAND_ERRORS + (ValueError,):
+    except (*COMMAND_ERRORS, ValueError):
         return None
 
 

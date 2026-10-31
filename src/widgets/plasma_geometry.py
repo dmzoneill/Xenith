@@ -1,7 +1,7 @@
 """Window placement helpers for the plasma widget"""
 
 from dataclasses import dataclass
-from typing import NamedTuple, Optional
+from typing import NamedTuple
 
 CORNERS = ("top-left", "top-right", "bottom-left", "bottom-right")
 
@@ -27,7 +27,7 @@ class WindowPlacement:
     height: int = 0
 
 
-def corner_position(corner: str, area: Area, size: tuple[int, int], offset: int) -> Optional[tuple[int, int]]:
+def corner_position(corner: str, area: Area, size: tuple[int, int], offset: int) -> tuple[int, int] | None:
     """Top-left window coordinates that place a window of ``size`` in ``corner`` of ``area``"""
     width, height = size
     left = area.x + offset

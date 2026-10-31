@@ -2,7 +2,6 @@
 
 import time
 from dataclasses import dataclass
-from typing import Optional
 
 from . import x11_window
 from .gtk4 import Gdk, GLib, Gtk
@@ -38,8 +37,8 @@ class DragState:
     start: tuple[float, float] = (0.0, 0.0)
     resize_start_width: int = 0
     window_start: tuple[int, int] = (0, 0)
-    last_move: Optional[tuple[int, int]] = None
-    cached_xid: Optional[int] = None
+    last_move: tuple[int, int] | None = None
+    cached_xid: int | None = None
 
 
 @dataclass
@@ -49,7 +48,7 @@ class AnimationClock:
     anim_time: float = 0.0
     start_time: float = 0.0
     last_time: float = 0.0
-    animation_id: Optional[int] = None
+    animation_id: int | None = None
     needs_redraw: bool = True
     last_state_change: float = 0.0
 
@@ -307,7 +306,7 @@ class PlasmaWidget(Gtk.Window):
         super().set_opacity(STATE_OPACITIES.get(state, self.DEFAULT_OPACITY))
         self.drawing_area.queue_draw()
 
-    def set_agent_color(self, color: Optional[tuple[float, float, float]], intensity: float = 0.5):
+    def set_agent_color(self, color: tuple[float, float, float] | None, intensity: float = 0.5):
         """Set agent color to blend with plasma (RGB 0-1, intensity 0-1)"""
         self._palette.tint.set_color(color, intensity)
         self.drawing_area.queue_draw()
@@ -331,7 +330,7 @@ class PlasmaWidget(Gtk.Window):
             self._placement.corner = corner
             self.update_position()
 
-    def _monitor_area(self) -> Optional[Area]:
+    def _monitor_area(self) -> Area | None:
         """Primary monitor geometry from GTK, if available"""
         display = self.get_display()
         try:
