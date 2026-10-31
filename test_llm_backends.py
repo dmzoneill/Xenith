@@ -107,9 +107,8 @@ def main():
     # Cleanup
     llm.unload()
 
-    print("\n" + "=" * 60)
-    print("Test complete!")
-    print("=" * 60)
+    banner = "=" * 60
+    print(f"\n{banner}\nTest complete!\n{banner}")
 
 
 if __name__ == "__main__":
