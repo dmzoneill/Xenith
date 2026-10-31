@@ -3,8 +3,11 @@
 
 # pylint: disable=import-outside-toplevel
 
+import importlib
 import os
 import sys
+
+import gi
 
 # Check for display
 if "DISPLAY" not in os.environ:
@@ -12,10 +15,6 @@ if "DISPLAY" not in os.environ:
     print("This test requires a graphical environment.")
     print("If running remotely, use X11 forwarding or a virtual display.")
     sys.exit(1)
-
-import importlib
-
-import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
