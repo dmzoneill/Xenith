@@ -1,7 +1,6 @@
 """Factory for creating TTS backends"""
 
-# Same registry shape as llm_backends.factory, for a different backend base class.
-# pylint: disable=duplicate-code
+import importlib
 
 from .base import TTSBackend
 
@@ -23,11 +22,10 @@ def _load_backends() -> None:
     # Try to import Piper backend (fastest, keeps model in memory)
     try:
         # Optional backend: imported lazily so a missing dependency only disables it.
-        # pylint: disable-next=import-outside-toplevel
-        from .piper_backend import PiperTTSBackend
+        piper_cls = importlib.import_module(".piper_backend", __package__).PiperTTSBackend
 
-        if PiperTTSBackend.is_available():
-            register_backend("piper", PiperTTSBackend)
+        if piper_cls.is_available():
+            register_backend("piper", piper_cls)
             print("[TTS] Piper backend available (fast, ~50ms/sentence)")
         else:
             print("[TTS] Piper backend not available")
@@ -36,12 +34,10 @@ def _load_backends() -> None:
 
     # Try to import MeloTTS backend
     try:
-        # Optional backend: imported lazily so a missing dependency only disables it.
-        # pylint: disable-next=import-outside-toplevel
-        from .melotts_backend import MeloTTSBackend
+        melo_cls = importlib.import_module(".melotts_backend", __package__).MeloTTSBackend
 
-        if MeloTTSBackend.is_available():
-            register_backend("melotts", MeloTTSBackend)
+        if melo_cls.is_available():
+            register_backend("melotts", melo_cls)
             print("[TTS] MeloTTS backend available (high quality)")
         else:
             print("[TTS] MeloTTS backend not available (binary not found)")
@@ -74,30 +70,18 @@ def get_tts_backend(
 
     # Auto-select backend
     if backend == "auto":
-        # Priority: Piper (fastest), then MeloTTS (highest quality)
-        for name in ["piper", "melotts"]:
-            if name in _BACKENDS:
-                backend = name
-                break
-        else:
-            # Use first available
-            backend = next(iter(_BACKENDS))
+        # Priority: Piper (fastest), then MeloTTS (highest quality), then first available
+        preferred = [name for name in ("piper", "melotts") if name in _BACKENDS]
+        backend = preferred[0] if preferred else next(iter(_BACKENDS))
 
-    backend = backend.lower()
-    if backend not in _BACKENDS:
-        print(f"[TTS] Unknown backend: {backend}")
-        print(f"[TTS] Available backends: {list(_BACKENDS.keys())}")
+    backend_class = _BACKENDS.get(backend.lower())
+    if backend_class is None:
+        print(f"[TTS] Unknown backend: {backend} (available: {', '.join(_BACKENDS)})")
         return None
 
-    backend_class = _BACKENDS[backend]
-
-    # Create instance
     try:
-        instance = backend_class(voice=voice, device=device, **kwargs)
-        return instance
-    # Backend constructors may raise anything (missing models, device errors); report and fall back.
-    # pylint: disable-next=broad-exception-caught
-    except Exception as e:  # noqa: BLE001
+        return backend_class(voice=voice, device=device, **kwargs)
+    except (KeyError, OSError, RuntimeError, ValueError, TypeError) as e:
         print(f"[TTS] Failed to create {backend} backend: {e}")
         return None
 
@@ -118,10 +102,11 @@ def print_tts_status() -> None:
         return
 
     for name, backend_class in _BACKENDS.items():
-        print(f"\n{name}:")
-        print(f"  Available: {backend_class.is_available()}")
-        device_info = backend_class.get_device_info()
-        print(f"  Devices: {device_info.get('devices', [])}")
-        if "notes" in device_info:
-            for dev, note in device_info["notes"].items():
-                print(f"    {dev}: {note}")
+        info = backend_class.get_device_info()
+        lines = [
+            f"\n{name}:",
+            f"  Available: {backend_class.is_available()}",
+            f"  Devices: {info.get('devices', [])}",
+        ]
+        lines.extend(f"    {dev}: {note}" for dev, note in info.get("notes", {}).items())
+        print("\n".join(lines))
