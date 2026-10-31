@@ -191,9 +191,7 @@ class OpenVINOLLMBackend(LLMBackend):
         except ImportError as e:
             print(f"[LLM] openvino_genai not available: {e}")
             return False
-        # openvino_genai raises varied runtime errors; report and degrade gracefully.
-        # pylint: disable-next=broad-exception-caught
-        except Exception as e:  # noqa: BLE001
+        except (OSError, RuntimeError, ValueError) as e:
             print(f"[LLM] Failed to load model: {e}")
             return False
 
@@ -246,9 +244,7 @@ class OpenVINOLLMBackend(LLMBackend):
                 finish_reason="stop",
             )
 
-        # openvino_genai raises varied runtime errors; report and degrade gracefully.
-        # pylint: disable-next=broad-exception-caught
-        except Exception as e:  # noqa: BLE001
+        except (OSError, RuntimeError, ValueError) as e:
             print(f"[LLM] Generation error: {e}")
             return LLMResult(text="", finish_reason="error")
 
@@ -286,9 +282,7 @@ class OpenVINOLLMBackend(LLMBackend):
             # Generate with streaming
             yield from self._pipeline.generate(full_prompt, gen_config, streamer)
 
-        # openvino_genai raises varied runtime errors; report and stop the stream.
-        # pylint: disable-next=broad-exception-caught
-        except Exception as e:  # noqa: BLE001
+        except (OSError, RuntimeError, ValueError) as e:
             print(f"[LLM] Streaming error: {e}")
 
     def chat(

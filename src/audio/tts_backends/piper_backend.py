@@ -119,9 +119,7 @@ class PiperTTSBackend(TTSBackend):
             print(f"[PiperTTS] ✓ Loaded: {self._voice_name}")
             return True
 
-        # piper/onnxruntime raise varied errors on bad models; report and degrade gracefully.
-        # pylint: disable-next=broad-exception-caught
-        except Exception as e:  # noqa: BLE001
+        except (OSError, RuntimeError, ValueError) as e:
             print(f"[PiperTTS] Load failed: {e}")
             return False
 
@@ -191,9 +189,7 @@ class PiperTTSBackend(TTSBackend):
                 sample_rate=sample_rate,
             )
 
-        # Synthesis errors are returned in the result rather than raised (caller contract).
-        # pylint: disable-next=broad-exception-caught
-        except Exception as e:  # noqa: BLE001
+        except (OSError, RuntimeError, ValueError) as e:
             return TTSResult(audio_path=None, duration=0.0, error=str(e))
 
     def get_available_voices(self) -> list[str]:

@@ -1,5 +1,7 @@
 """Factory for creating LLM backends"""
 
+import importlib
+
 from .base import LLMBackend
 
 # Registry of available backends
@@ -20,11 +22,11 @@ def _load_backends() -> None:
     # Try to import OpenVINO backend
     try:
         # Optional backend: imported lazily so a missing dependency only disables it.
-        # pylint: disable-next=import-outside-toplevel
-        from .openvino_backend import OpenVINOLLMBackend
+        module = importlib.import_module(".openvino_backend", __package__)
+        ov_cls = module.OpenVINOLLMBackend
 
-        if OpenVINOLLMBackend.is_available():
-            register_backend("openvino", OpenVINOLLMBackend)
+        if ov_cls.is_available():
+            register_backend("openvino", ov_cls)
             print("[LLM] OpenVINO backend available")
         else:
             print("[LLM] OpenVINO backend not available (openvino_genai not installed)")
@@ -80,9 +82,7 @@ def get_llm_backend(
     try:
         instance = backend_class(model=model, device=device, **kwargs)
         return instance
-    # Backend constructors may raise anything (missing models, device errors); report and fall back.
-    # pylint: disable-next=broad-exception-caught
-    except Exception as e:  # noqa: BLE001
+    except (OSError, RuntimeError, ValueError, TypeError) as e:
         print(f"[LLM] Failed to create {backend} backend: {e}")
         return None
 
