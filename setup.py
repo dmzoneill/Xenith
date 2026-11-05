@@ -14,7 +14,7 @@ setup(
         "PyGObject>=3.42.0",
         "cairo>=1.21.0",
         "openai-whisper>=20231117",  # Local voice-to-text (default)
-        "torch>=2.0.0",  # Required by Whisper
+        "torch>=2.14.0",  # Required by Whisper
         "torchaudio>=2.0.0",  # Required by Whisper
         # "pyaudio>=0.2.14",  # Optional - requires portaudio-devel. We use sounddevice instead.
         "sounddevice>=0.4.6",
