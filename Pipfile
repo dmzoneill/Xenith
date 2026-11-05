@@ -9,8 +9,8 @@ pygobject = ">=3.58.1"
 
 # Speech-to-Text
 openai-whisper = ">=20250625"
-torch = ">=2.14.1"
-torchaudio = ">=2.11.0"
+torch = ">=2.15.0"
+torchaudio = ">=2.11.1"
 
 # OpenVINO (Intel NPU/GPU/CPU)
 openvino = "*"
@@ -25,7 +25,7 @@ piper-tts = "*"
 pyttsx3 = ">=2.99"
 
 # LLM APIs (optional cloud fallback)
-openai = ">=3.37.0"
+openai = ">=3.42.1"
 anthropic = ">=2.3.0"
 
 # Configuration
