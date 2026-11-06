@@ -676,8 +676,8 @@ class StreamingPipeline:
             import shutil
 
             shutil.rmtree(self._temp_dir, ignore_errors=True)
-        except Exception:
-            pass
+        except OSError as exc:
+            print(f"[StreamingPipeline] temp cleanup failed: {exc}")
 
         self._is_loaded = False
         print("[StreamingPipeline] Unloaded")
