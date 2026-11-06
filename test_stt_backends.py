@@ -65,7 +65,7 @@ def check_backends():
                 try:
                     gpu_name = core.get_property(dev, "FULL_DEVICE_NAME")
                     print(f"   ✓ GPU: {gpu_name}")
-                except:
+                except Exception:
                     print(f"   ✓ GPU: {dev}")
                 break
 
