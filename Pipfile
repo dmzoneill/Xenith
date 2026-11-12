@@ -25,8 +25,8 @@ piper-tts = "*"
 pyttsx3 = ">=2.99"
 
 # LLM APIs (optional cloud fallback)
-openai = ">=3.42.1"
-anthropic = ">=2.3.0"
+openai = ">=3.46.0"
+anthropic = ">=2.6.0"
 
 # Configuration
 pyyaml = ">=6.0.3"
