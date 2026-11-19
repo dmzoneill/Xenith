@@ -18,15 +18,15 @@ openvino-genai = "*"
 
 # Audio Input/Output
 sounddevice = ">=0.5.6"
-numpy = ">=2.5.4,<3.0.0"
+numpy = ">=2.5.5,<3.0.0"
 
 # Text-to-Speech
 piper-tts = "*"
 pyttsx3 = ">=2.99"
 
 # LLM APIs (optional cloud fallback)
-openai = ">=3.46.0"
-anthropic = ">=2.6.0"
+openai = ">=3.51.0"
+anthropic = ">=2.8.0"
 
 # Configuration
 pyyaml = ">=6.0.3"
@@ -36,7 +36,7 @@ jsonschema = ">=4.26.0"
 huggingface_hub = "*"
 
 # Utilities
-importlib-metadata = ">=10.1.0"
+importlib-metadata = ">=10.2.0"
 
 [dev-packages]
 black = "*"
